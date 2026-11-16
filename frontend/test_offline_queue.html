@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Offline Queue BUG-01 Test Suite</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #0f172a; color: #f8fafc; }
+    .pass { color: #4ade80; }
+    .fail { color: #f87171; }
+    .test { margin-bottom: 8px; }
+    #summary { font-size: 16px; margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>Offline Queue BUG-01 Test Suite</h1>
+  <div id="output">Running tests...</div>
+  <div id="summary"></div>
+
+  <script type="module">
+    import { OfflineQueue } from './js/offline-queue.js';
+
+    window.__TEST_RESULTS__ = { total: 0, passed: 0, failed: 0, details: [] };
+
+    function log(msg, isPass = null) {
+      const div = document.createElement('div');
+      div.className = 'test ' + (isPass === true ? 'pass' : (isPass === false ? 'fail' : ''));
+      div.textContent = msg;
+      document.getElementById('output').appendChild(div);
+      console.log(msg);
+    }
+
+    async function assert(desc, condition) {
+      window.__TEST_RESULTS__.total++;
+      if (condition) {
+        window.__TEST_RESULTS__.passed++;
+        window.__TEST_RESULTS__.details.push({ desc, pass: true });
+        log(`  [PASS] ${desc}`, true);
+      } else {
+        window.__TEST_RESULTS__.failed++;
+        window.__TEST_RESULTS__.details.push({ desc, pass: false });
+        log(`  [FAIL] ${desc}`, false);
+        throw new Error(`Assertion failed: ${desc}`);
+      }
+    }
+
+    async function runAllTests() {
+      document.getElementById('output').innerHTML = '';
+      log('Starting Offline Queue BUG-01 Tests...');
+
+      const queue = new OfflineQueue();
+      const initRes = await queue.init();
+      if (!initRes.supported) {
+        log('IndexedDB or WebCrypto not supported in this environment!', false);
+        return;
+      }
+
+      const dummyBlob1 = new Blob(['page1 dummy data'], { type: 'image/jpeg' });
+      const dummyBlob2 = new Blob(['page2 dummy data'], { type: 'image/jpeg' });
+
+      // Clean queue before testing
+      await queue.purgeAll();
+
+      // =========================================================================
+      // Test 1: HTTP 401 — item remains in IndexedDB; queue pauses
+      // =========================================================================
+      log('\n--- Test 1: HTTP 401 (Auth Expired) ---');
+      try {
+        localStorage.setItem('auth_token', 'stale_token_123');
+        const id1 = await queue.enqueue(dummyBlob1, dummyBlob2, { campId: 'camp_01' });
+        await assert('Item enqueued and exists before drain', (await queue.length()) === 1);
+
+        let callCount = 0;
+        let authEventFired = false;
+        queue._onProgress = (evt) => {
+          if (evt.type === 'auth_required' && evt.id === id1) authEventFired = true;
+        };
+
+        const mockExtract401 = async () => {
+          callCount++;
+          const err = new Error('Token expired');
+          err.status = 401;
+          throw err;
+        };
+
+        const stats = await queue.drain(mockExtract401);
+        await assert('Item remains in IndexedDB after HTTP 401', (await queue.length()) === 1);
+        await assert('Queue paused flag set in stats', stats.paused === true);
+        await assert('extractFn called exactly once', callCount === 1);
+        await assert('auth_required event emitted', authEventFired === true);
+
+        const entry1 = await queue.getEntry(id1);
+        await assert('Entry status marked as auth_required', entry1.status === 'auth_required');
+        await assert('Entry last_status_code is 401', entry1.last_status_code === 401);
+
+        // Clean up Test 1
+        await queue.purgeAll();
+      } catch (e) {
+        log(`Test 1 Error: ${e.message}`, false);
+      }
+
+      // =========================================================================
+      // Test 2: HTTP 403 — item remains; no tight retry loop
+      // =========================================================================
+      log('\n--- Test 2: HTTP 403 (Permission Denied) ---');
+      try {
+        localStorage.setItem('auth_token', 'valid_token');
+        const id2 = await queue.enqueue(dummyBlob1, dummyBlob2, { campId: 'camp_02' });
+        let callCount2 = 0;
+        let permEventFired = false;
+        queue._onProgress = (evt) => {
+          if (evt.type === 'permission_error' && evt.id === id2) permEventFired = true;
+        };
+
+        const mockExtract403 = async () => {
+          callCount2++;
+          const err = new Error('Cross-community access denied');
+          err.status = 403;
+          throw err;
+        };
+
+        await queue.drain(mockExtract403);
+        await assert('Item remains in IndexedDB after HTTP 403', (await queue.length()) === 1);
+        await assert('permission_error event emitted', permEventFired === true);
+        const entry2 = await queue.getEntry(id2);
+        await assert('Entry marked requires_attention = true', entry2.requires_attention === true);
+        await assert('Entry status is permission_denied', entry2.status === 'permission_denied');
+
+        // Test tight loop prevention: second auto-drain should skip this item without calling extractFn
+        const stats2 = await queue.drain(mockExtract403);
+        await assert('Auto-drain skipped item requiring attention', stats2.blocked === 1);
+        await assert('extractFn was NOT called again in tight loop', callCount2 === 1);
+
+        await queue.purgeAll();
+      } catch (e) {
+        log(`Test 2 Error: ${e.message}`, false);
+      }
+
+      // =========================================================================
+      // Test 3: HTTP 422 — item remains; error is surfaced
+      // =========================================================================
+      log('\n--- Test 3: HTTP 422 (Image Quality / Validation Error) ---');
+      try {
+        localStorage.setItem('auth_token', 'valid_token');
+        const id3 = await queue.enqueue(dummyBlob1, dummyBlob2, { campId: 'camp_03' });
+        let validationEventFired = false;
+        queue._onProgress = (evt) => {
+          if (evt.type === 'validation_error' && evt.id === id3) validationEventFired = true;
+        };
+
+        const mockExtract422 = async () => {
+          const err = new Error('Image quality check failed (blur score 25 < 40)');
+          err.status = 422;
+          throw err;
+        };
+
+        await queue.drain(mockExtract422);
+        await assert('Item remains in IndexedDB after HTTP 422', (await queue.length()) === 1);
+        await assert('validation_error event emitted', validationEventFired === true);
+        const entry3 = await queue.getEntry(id3);
+        await assert('Entry marked with validation_error status', entry3.status === 'validation_error');
+        await assert('Entry has last_status_code 422', entry3.last_status_code === 422);
+        await assert('Entry requires_attention is true', entry3.requires_attention === true);
+
+        await queue.purgeAll();
+      } catch (e) {
+        log(`Test 3 Error: ${e.message}`, false);
+      }
+
+      // =========================================================================
+      // Test 4: HTTP 400 or 413 — item remains
+      // =========================================================================
+      log('\n--- Test 4: HTTP 400 / 413 (Client Request Error) ---');
+      try {
+        localStorage.setItem('auth_token', 'valid_token');
+        const id4a = await queue.enqueue(dummyBlob1, dummyBlob2, { campId: 'camp_04a' });
+        const id4b = await queue.enqueue(dummyBlob1, dummyBlob2, { campId: 'camp_04b' });
+
+        const mockExtractClientErr = async (p1, p2, hdrs) => {
+          const err = new Error('Payload too large or malformed');
+          err.status = 413;
+          throw err;
+        };
+
+        await queue.drain(mockExtractClientErr);
+        await assert('Both items remain in IndexedDB after 4xx errors', (await queue.length()) === 2);
+        const entry4a = await queue.getEntry(id4a);
+        const entry4b = await queue.getEntry(id4b);
+        await assert('Item 1 marked as client_error', entry4a.status === 'client_error');
+        await assert('Item 2 marked as client_error', entry4b.status === 'client_error');
+        await assert('Items marked with status code 413', entry4a.last_status_code === 413);
+
+        await queue.purgeAll();
+      } catch (e) {
+        log(`Test 4 Error: ${e.message}`, false);
+      }
+
+      // =========================================================================
+      // Test 5: HTTP 500 — item remains and retry behaviour works
+      // =========================================================================
+      log('\n--- Test 5: HTTP 500 (Server Error with Retry) ---');
+      try {
+        localStorage.setItem('auth_token', 'valid_token');
+        const id5 = await queue.enqueue(dummyBlob1, dummyBlob2, { campId: 'camp_05' });
+        let retryEventFired = false;
+        queue._onProgress = (evt) => {
+          if (evt.type === 'retry_later' && evt.id === id5) retryEventFired = true;
+        };
+
+        const mockExtract500 = async () => {
+          const err = new Error('Internal Server Error in Vision Pipeline');
+          err.status = 500;
+          throw err;
+        };
+
+        await queue.drain(mockExtract500);
+        await assert('Item remains in IndexedDB after HTTP 500', (await queue.length()) === 1);
+        await assert('retry_later event emitted', retryEventFired === true);
+        const entry5 = await queue.getEntry(id5);
+        await assert('Entry attempts incremented to 1', entry5.attempts === 1);
+        await assert('Entry marked status transient_error', entry5.status === 'transient_error');
+
+        // Second drain should increment attempts again
+        await queue.drain(mockExtract500);
+        const entry5b = await queue.getEntry(id5);
+        await assert('Entry attempts incremented to 2 on second drain', entry5b.attempts === 2);
+        await assert('Item still preserved in IndexedDB', (await queue.length()) === 1);
+
+        await queue.purgeAll();
+      } catch (e) {
+        log(`Test 5 Error: ${e.message}`, false);
+      }
+
+      // =========================================================================
+      // Test 6: Network failure — item remains
+      // =========================================================================
+      log('\n--- Test 6: Network Failure (Offline / Connection Reset) ---');
+      try {
+        localStorage.setItem('auth_token', 'valid_token');
+        const id6 = await queue.enqueue(dummyBlob1, dummyBlob2, { campId: 'camp_06' });
+
+        const mockNetworkFailure = async () => {
+          const err = new TypeError('Failed to fetch (network disconnected)');
+          err.status = 0;
+          throw err;
+        };
+
+        await queue.drain(mockNetworkFailure);
+        await assert('Item remains in IndexedDB after network failure', (await queue.length()) === 1);
+        const entry6 = await queue.getEntry(id6);
+        await assert('Entry marked transient_error with status 0', entry6.status === 'transient_error' && entry6.last_status_code === 0);
+
+        await queue.purgeAll();
+      } catch (e) {
+        log(`Test 6 Error: ${e.message}`, false);
+      }
+
+      // =========================================================================
+      // Test 7: Successful upload — item is deleted
+      // =========================================================================
+      log('\n--- Test 7: Successful Upload (HTTP 200) ---');
+      try {
+        localStorage.setItem('auth_token', 'valid_token');
+        const id7 = await queue.enqueue(dummyBlob1, dummyBlob2, { campId: 'camp_07' });
+        await assert('Item exists before successful drain', (await queue.length()) === 1);
+
+        let syncedFired = false;
+        queue._onProgress = (evt) => {
+          if (evt.type === 'synced' && evt.id === id7) syncedFired = true;
+        };
+
+        const mockExtractSuccess = async (p1, p2, hdrs) => {
+          return { success: true, record_id: 'rec_test_123', person_name: 'Test Patient' };
+        };
+
+        const stats7 = await queue.drain(mockExtractSuccess);
+        await assert('Item is deleted from IndexedDB upon confirmed success', (await queue.length()) === 0);
+        await assert('stats.synced incremented to 1', stats7.synced === 1);
+        await assert('synced event emitted', syncedFired === true);
+
+        await queue.purgeAll();
+      } catch (e) {
+        log(`Test 7 Error: ${e.message}`, false);
+      }
+
+      // =========================================================================
+      // Test 8: Expired token followed by re-login — retry uses fresh token and succeeds
+      // =========================================================================
+      log('\n--- Test 8: Expired Token -> Re-login -> Retry With Fresh Token ---');
+      try {
+        // Step A: Initial capture with expired token
+        localStorage.setItem('auth_token', 'expired_token_111');
+        const id8 = await queue.enqueue(dummyBlob1, dummyBlob2, { campId: 'camp_08' });
+
+        let tokenSeenOnServer = null;
+        const mockExtractWithTokenCheck = async (p1, p2, hdrs) => {
+          tokenSeenOnServer = hdrs['Authorization'] || null;
+          if (tokenSeenOnServer === 'Bearer expired_token_111') {
+            const err = new Error('JWT token expired');
+            err.status = 401;
+            throw err;
+          }
+          if (tokenSeenOnServer === 'Bearer fresh_authenticated_token_999') {
+            return { success: true, record_id: 'rec_sync_success' };
+          }
+          const err = new Error('Invalid token');
+          err.status = 401;
+          throw err;
+        };
+
+        // Drain attempt 1: Fails with 401 using expired token
+        const statsA = await queue.drain(mockExtractWithTokenCheck);
+        await assert('Initial drain failed with 401', statsA.paused === true);
+        await assert('Item preserved in IndexedDB', (await queue.length()) === 1);
+        const entry8Pre = await queue.getEntry(id8);
+        await assert('Item status is auth_required', entry8Pre.status === 'auth_required');
+
+        // Step B: User re-authenticates (logs in), updating localStorage with fresh token
+        localStorage.setItem('auth_token', 'fresh_authenticated_token_999');
+
+        // Drain attempt 2: Retry uses fresh token and succeeds
+        const statsB = await queue.drain(mockExtractWithTokenCheck, { retryBlocked: true });
+        await assert('Server received fresh token', tokenSeenOnServer === 'Bearer fresh_authenticated_token_999');
+        await assert('Retry succeeded and stats.synced is 1', statsB.synced === 1);
+        await assert('Item cleanly deleted after successful authenticated sync', (await queue.length()) === 0);
+
+        await queue.purgeAll();
+      } catch (e) {
+        log(`Test 8 Error: ${e.message}`, false);
+      }
+
+      // =========================================================================
+      // Summary
+      // =========================================================================
+      const res = window.__TEST_RESULTS__;
+      const summaryText = `\n=========================================\nTOTAL: ${res.total} | PASSED: ${res.passed} | FAILED: ${res.failed}\n=========================================`;
+      log(summaryText);
+      const summaryDiv = document.getElementById('summary');
+      summaryDiv.textContent = summaryText;
+      summaryDiv.className = res.failed === 0 ? 'pass' : 'fail';
+      window.__TEST_COMPLETE__ = true;
+    }
+
+    runAllTests();
+  </script>
+</body>
+</html>

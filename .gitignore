@@ -1,0 +1,63 @@
+# Python & Virtual Environments
+.venv/
+venv/
+env/
+__pycache__/
+node_modules/
+*.pyc
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Databases & Local Demo Records
+*.db
+*.sqlite
+*.sqlite3
+backend/clinic_records.db
+
+# Environment variables & Secret keys
+.env
+backend/.env
+*.env.local
+
+# Uploads & Images (preserve privacy)
+uploads/
+frontend/uploads/
+data/
+private_uploads/
+*.jpg
+*.jpeg
+*.png
+*.webp
+!frontend/assets/*
+!frontend/intro/*
+!mobile/assets/*
+!fixtures/*
+test_download.xlsx
+*.xlsx
+
+# Invoices & Generated PDFs
+*.pdf
+!backend/invoices/.gitkeep
+!docs/forms/*.pdf
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+# Render and deployment secrets
+.env.*
+!.env.example
+backend/.env.render
+
+# Private sample and clinical data
+fixtures/
+mobile/.claude/
+docs/Doctor_Short_Forms_to_AI_Understanding_Camp_Reference.docx
+docs/Medical_Terminology_Camp_Case_Sheets_AI_Reference_PMOS.docx
+
+# Personal reference media
+docs/references/ui_samples/*.mp4

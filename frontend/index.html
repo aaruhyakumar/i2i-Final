@@ -1,0 +1,2562 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Ink 2 Insight — Ideas to Impact</title>
+  <meta name="description" content="Ink 2 Insight — Optical Clinical Intake & Vision AI Platform for Healthcare Camps.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="icon" type="image/png" href="assets/logo.png">
+  <link rel="stylesheet" href="css/styles.css?v=20261116_bug07">
+  <!-- Ink 2 Insight Full-Screen Brand Intro -->
+  <link rel="stylesheet" href="intro/intro.css?v=20261110">
+  <script src="intro/intro.js"></script>
+  <!-- Local Pinned HEIC Client-Side Decoder (Offline-Compatible, Pinned v0.0.4) -->
+  <script src="js/vendor/heic2any.min.js"></script>
+  <!-- Supabase JS Client for Auth -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // Global skip hook for the intro splash. Resolve directly to a landing transition
+    // so the intro callback does not recurse back into itself.
+    window.finishSplash = function() {
+      const landing = document.getElementById('landing');
+      if (window.app && typeof window.app.go === 'function') {
+        window.app.go('landing');
+        return;
+      }
+      if (landing) {
+        document.querySelectorAll('.scr').forEach(s => {
+          s.classList.toggle('on', s.id === 'landing');
+        });
+      }
+    };
+  </script>
+</head>
+<body>
+
+  <!-- Desktop Viewport Toggle Pill -->
+  <button class="view-toggle-pill" id="view-toggle-btn" onclick="window.app ? window.app.toggleFrame() : null" title="Toggle phone frame / expanded view">
+    <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><rect x="5" y="2" width="14" height="20" rx="3"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+    <span id="view-toggle-text">Expand View</span>
+  </button>
+
+  <div id="phone">
+
+    <!-- Insecure Context HTTPS Warning Banner -->
+    <div id="insecure-context-banner" style="display:none;background:#FEF2F2;border-bottom:2px solid #EF4444;color:#991B1B;padding:10px 14px;font-size:12.5px;font-weight:700;line-height:1.4;align-items:center;gap:8px;z-index:9999;" role="alert">
+      <span style="font-size:16px;">⚠️</span>
+      <span>Camera requires a secure HTTPS connection. Browsers block camera access on plain HTTP. Please access Doc Scanner over HTTPS.</span>
+    </div>
+
+    <!-- 2. LANDING SCREEN — INK 2 INSIGHT CLINICAL INTAKE -->
+    <!-- 2. LANDING SCREEN — INK 2 INSIGHT CLINICAL INTAKE -->
+    <section class="scr on" id="landing">
+      <!-- Top Sticky Navigation Header -->
+      <div class="landing-header">
+        <div class="landing-header-logo">
+          <img src="assets/logo.png" width="40" height="40" alt="Ink 2 Insight logo" style="border-radius: 12px;">
+          <div class="landing-header-title">Ink 2 Insight</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;">
+          <button type="button" class="landing-nav-signin-btn" onclick="window.app.go('login')" id="landing-login-btn">
+            Sign In
+          </button>
+        </div>
+      </div>
+
+      <!-- Hero Section -->
+      <div class="landing-hero-container">
+        <div class="landing-badge">
+          <span class="landing-badge-dot"></span>
+          <span>Healthcare Technology Platform</span>
+        </div>
+
+        <h1 class="landing-main-title">
+          Digital Patient Record<br>
+          <span class="landing-accent-text">Management System</span>
+        </h1>
+
+        <p class="landing-hero-desc">
+          Enterprise-grade clinical data digitization platform for healthcare organizations. Convert paper-based medical records into structured digital format with AI-assisted validation and physician oversight.
+        </p>
+
+        <div class="landing-cta-stack">
+          <button type="button" class="landing-btn-primary" onclick="window.app.go('login')" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+            <span>Access Platform</span>
+          </button>
+          <div style="display:flex;gap:10px;">
+            <button type="button" class="landing-btn-secondary" style="flex:1;min-height:48px;" onclick="window.app.loginDemo()">
+              View Demo
+            </button>
+            <button type="button" class="landing-btn-secondary" style="flex:1;min-height:48px;" onclick="document.getElementById('how-it-works-anchor').scrollIntoView({behavior:'smooth'})">
+              Learn More
+            </button>
+          </div>
+        </div>
+
+        <!-- Scanning Document Graphic with Animated Laser -->
+        <div class="landing-graphic-wrap">
+          <div class="landing-paper-card">
+            <div class="landing-paper-bar" style="width:60%;height:12px;background:#0F1B2D;border-radius:6px;"></div>
+            <div class="landing-paper-bar" style="width:90%;"></div>
+            <div class="landing-paper-bar" style="width:75%;"></div>
+            <div class="landing-paper-bar" style="width:85%;"></div>
+            <div style="height:1px;background:#F0E3E8;margin:4px 0;"></div>
+            <div class="landing-paper-bar" style="width:70%;"></div>
+            <div class="landing-paper-bar" style="width:92%;"></div>
+            <div class="landing-paper-bar" style="width:55%;"></div>
+            <div class="landing-paper-bar" style="width:80%;"></div>
+            <div class="landing-paper-laser"></div>
+          </div>
+
+          <div class="landing-status-pill pill-top">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E6B3D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+            <span>Name read</span>
+          </div>
+
+          <div class="landing-status-pill pill-mid">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0E6B3D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+            <span>Vitals read</span>
+          </div>
+
+          <div class="landing-status-pill pill-bottom">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A4B00" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l10 18H2z"></path><path d="M12 10v5M12 18v.5"></path></svg>
+            <span>Doctor to check</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Trust Bar -->
+      <div class="landing-trust-bar">
+        <div class="landing-trust-item">HIPAA Compliant</div>
+        <div class="landing-trust-divider"></div>
+        <div class="landing-trust-item">Enterprise Security</div>
+        <div class="landing-trust-divider"></div>
+        <div class="landing-trust-item">Data Privacy Protected</div>
+      </div>
+
+      <!-- How It Works Section -->
+      <div id="how-it-works-anchor" class="landing-section-how">
+        <div class="landing-sub-label">System Overview</div>
+        <h2 class="landing-section-title">Clinical Workflow Process</h2>
+        <div class="landing-steps-list">
+          <div class="landing-step-row">
+            <div class="landing-step-num">1</div>
+            <div class="landing-step-body">
+              <div class="landing-step-title">Document Capture</div>
+              <p class="landing-step-desc">High-resolution optical scanning of patient intake forms with automated quality validation and error detection.</p>
+            </div>
+          </div>
+          <div class="landing-step-row">
+            <div class="landing-step-num">2</div>
+            <div class="landing-step-body">
+              <div class="landing-step-title">AI-Assisted Extraction</div>
+              <p class="landing-step-desc">Intelligent optical character recognition extracts structured clinical data with confidence scoring and validation markers.</p>
+            </div>
+          </div>
+          <div class="landing-step-row">
+            <div class="landing-step-num">3</div>
+            <div class="landing-step-body">
+              <div class="landing-step-title">Physician Verification</div>
+              <p class="landing-step-desc">Licensed medical professionals review flagged entries and authorize final record submission with digital signature.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Built for the Camp Feature Cards -->
+      <div class="landing-section-features">
+        <div class="landing-sub-label">Enterprise Features</div>
+        <h2 class="landing-section-title" style="margin-bottom:8px;">Comprehensive Healthcare Solution</h2>
+
+        <div class="landing-feature-card">
+          <div class="landing-feature-ico" style="background:#E8EAF6;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#3F51B5" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M4 12h16"></path></svg>
+          </div>
+          <div class="landing-feature-title">Optical Document Scanning</div>
+          <p class="landing-feature-desc">Professional-grade image acquisition with multi-page support and automated quality assurance protocols.</p>
+        </div>
+
+        <div class="landing-feature-card">
+          <div class="landing-feature-ico" style="background:#E8F5E9;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#2E7D32" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14v16H5z"></path><path d="M9 9h6M9 13h6M9 17h3"></path></svg>
+          </div>
+          <div class="landing-feature-title">Intelligent Data Extraction</div>
+          <p class="landing-feature-desc">Advanced machine learning algorithms process handwritten medical forms with 95%+ field accuracy and confidence metrics.</p>
+        </div>
+
+        <div class="landing-feature-card">
+          <div class="landing-feature-ico" style="background:#FFF3E0;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#EF6C00" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          </div>
+          <div class="landing-feature-title">Clinical Oversight</div>
+          <p class="landing-feature-desc">Mandatory physician review and approval workflow ensures medical accuracy and regulatory compliance.</p>
+        </div>
+
+        <div class="landing-feature-card">
+          <div class="landing-feature-ico" style="background:#E0F2F1;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00695C" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 10h18M9 4v16"></path></svg>
+          </div>
+          <div class="landing-feature-title">Data Export & Integration</div>
+          <p class="landing-feature-desc">Structured data output in industry-standard formats compatible with existing healthcare information systems.</p>
+        </div>
+      </div>
+
+      <!-- The Right View for Every Role -->
+      <div class="landing-section-roles">
+        <h2 class="landing-section-title">The right view for every role</h2>
+        <div class="landing-roles-stack">
+          <div class="landing-role-card">
+            <div class="landing-role-name">User</div>
+            <p class="landing-role-desc">A scan-first home screen. Capture forms and fix identity details.</p>
+          </div>
+          <div class="landing-role-card">
+            <div class="landing-role-name">Doctor</div>
+            <p class="landing-role-desc">Review flagged fields, edit clinical details and approve records.</p>
+          </div>
+          <div class="landing-role-card">
+            <div class="landing-role-name">Admin</div>
+            <p class="landing-role-desc">Manage your team, usage and exports for the whole camp.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ready for your next camp? Sign in CTA -->
+      <div class="landing-cta-banner">
+        <h2 class="landing-cta-title">Ready for your next camp?</h2>
+        <p class="landing-cta-desc">Sign in to scan forms, review records and export your camp data.</p>
+        <button type="button" class="landing-btn-banner" onclick="window.app.go('login')">
+          Sign in
+        </button>
+      </div>
+
+      <!-- Footer -->
+      <footer class="landing-footer">
+        <div class="landing-footer-brand">Ink 2 Insight</div>
+        <div class="landing-footer-sub">Ideas to Impact · Clinical Intake</div>
+        <div class="landing-footer-copy">© 2026 Ink 2 Insight</div>
+      </footer>
+    </section>
+
+    <!-- 3. SIGN IN SCREEN (Reference: Saad Shaikh Elegant Topographic Pink Wave) -->
+    <section class="scr" id="login">
+      <div class="signin-wave-box">
+        <button class="signin-back-btn" onclick="window.app.go('landing')" aria-label="Back">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#fff;"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <!-- Centered Brand Logo Badge in Wavy Header -->
+        <div class="signin-brand-center">
+          <img src="assets/logo.png" alt="Ink 2 Insight" class="signin-brand-logo-img" />
+        </div>
+
+        <svg viewBox="0 0 400 165" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="signinGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FF758C"/>
+              <stop offset="50%" stop-color="#FF6B8B"/>
+              <stop offset="100%" stop-color="#D81B60"/>
+            </linearGradient>
+          </defs>
+          <rect width="400" height="165" fill="url(#signinGrad)" stroke="none"/>
+
+          <!-- Topographic Contour Rings matching reference -->
+          <ellipse class="topo-ring" cx="200" cy="75" rx="140" ry="70" transform="rotate(-6 200 75)"/>
+          <ellipse class="topo-ring" cx="200" cy="75" rx="90" ry="45" transform="rotate(-6 200 75)"/>
+          <ellipse class="topo-ring" cx="340" cy="95" rx="110" ry="55" transform="rotate(12 340 95)"/>
+          <ellipse class="topo-ring" cx="60" cy="85" rx="95" ry="48" transform="rotate(-15 60 85)"/>
+
+          <!-- Organic S-Wave Transition into Pure White Card -->
+          <path class="wave-cutout" d="M 0,125 C 90,110 160,158 270,145 C 330,135 375,112 400,102 L 400,165 L 0,165 Z"/>
+        </svg>
+      </div>
+
+      <div class="signin-content-box">
+        <div class="signin-title-wrap">
+          <h1 class="signin-title">Clinic Access</h1>
+          <div class="signin-title-underline"></div>
+        </div>
+
+        <!-- EMAIL / PASSWORD AUTHENTICATION FORM -->
+        <form id="auth-form-email" onsubmit="event.preventDefault(); window.app.login();">
+          <div class="signin-form-group">
+            <label class="signin-label" for="login-email">Email</label>
+            <div class="signin-input-wrap">
+              <svg class="signin-input-icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <input id="login-email" type="email" placeholder="physician@hospital.org" autocomplete="email" required />
+            </div>
+          </div>
+
+          <div class="signin-form-group">
+            <label class="signin-label" for="login-password">Password</label>
+            <div class="signin-input-wrap">
+              <svg class="signin-input-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <input id="login-password" type="password" placeholder="Enter your password" autocomplete="current-password" required />
+              <button type="button" class="signin-pwd-toggle" onclick="const p=document.getElementById('login-password'); p.type = p.type==='password'?'text':'password';" aria-label="Toggle password visibility">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <p class="err" id="login-error" style="margin-bottom:8px;"></p>
+
+          <div class="signin-meta-row">
+            <label class="signin-remember-wrap">
+              <input type="checkbox" id="login-remember" checked />
+              <span>Remember Me</span>
+            </label>
+            <a href="#" class="signin-forgot-link" onclick="event.preventDefault(); window.app.forgotPassword();">Forgot Password?</a>
+          </div>
+
+          <button type="submit" class="signin-submit-btn" id="login-submit-btn">
+            Login with Email
+          </button>
+        </form>
+
+        <!-- Quick Demo One-Click Sign In -->
+        <button type="button" id="login-demo-btn" class="btn ghost demo-only-btn" style="margin-top:12px;border:1.5px dashed #D81B60;color:#D81B60;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;background:#FFF0F5;" onclick="window.app.loginDemo()">
+          <span>⚡ Demo 1-Click Access (Dr. Priya · Attending Physician)</span>
+        </button>
+
+        <div class="signin-footer-link" style="margin-top:14px;">
+          Don't have an account? <span class="action" onclick="window.app.go('register')">Create Account</span>
+        </div>
+        <div class="signin-footer-link" style="margin-top:6px;font-size:12px;">
+          Need a clinic account? <span class="action" onclick="window.app.promptSignUp()">Contact Administrator</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3B. REGISTRATION SCREEN (Doctor / User Sign Up) -->
+    <section class="scr" id="register">
+      <div class="signin-wave-box">
+        <button type="button" class="signin-back-btn" onclick="window.app.go('login', true)" aria-label="Back to Login">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#fff;"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <!-- Centered Brand Logo Badge in Wavy Header -->
+        <div class="signin-brand-center">
+          <img src="assets/logo.png" alt="Ink 2 Insight" class="signin-brand-logo-img" />
+        </div>
+
+        <svg viewBox="0 0 400 165" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="regGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FF758C"/>
+              <stop offset="50%" stop-color="#FF6B8B"/>
+              <stop offset="100%" stop-color="#D81B60"/>
+            </linearGradient>
+          </defs>
+          <rect width="400" height="165" fill="url(#regGrad)" stroke="none"/>
+          <ellipse class="topo-ring" cx="200" cy="75" rx="140" ry="70" transform="rotate(-6 200 75)"/>
+          <ellipse class="topo-ring" cx="200" cy="75" rx="90" ry="45" transform="rotate(-6 200 75)"/>
+          <ellipse class="topo-ring" cx="340" cy="95" rx="110" ry="55" transform="rotate(12 340 95)"/>
+          <ellipse class="topo-ring" cx="60" cy="85" rx="95" ry="48" transform="rotate(-15 60 85)"/>
+          <path class="wave-cutout" d="M 0,125 C 90,110 160,158 270,145 C 330,135 375,112 400,102 L 400,165 L 0,165 Z"/>
+        </svg>
+      </div>
+
+      <div class="signin-content-box">
+        <div class="signin-title-wrap">
+          <h1 class="signin-title">Create Account</h1>
+          <div class="signin-title-underline"></div>
+        </div>
+
+        <!-- Account Type Selector (Doctor / User) -->
+        <div class="reg-type-selector" role="radiogroup" aria-label="Account Type">
+          <button type="button" class="reg-type-btn active" id="reg-type-btn-doctor" onclick="window.app.setRegisterAccountType('doctor')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M2 12h20"/></svg>
+            <span>Doctor</span>
+          </button>
+          <button type="button" class="reg-type-btn" id="reg-type-btn-user" onclick="window.app.setRegisterAccountType('user')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>User</span>
+          </button>
+        </div>
+
+        <!-- REGISTRATION FORM -->
+        <form id="auth-form-register" onsubmit="event.preventDefault(); window.app.register();">
+          <div class="signin-form-group">
+            <label class="signin-label" for="reg-full-name">Full Name</label>
+            <div class="signin-input-wrap">
+              <svg class="signin-input-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input id="reg-full-name" type="text" placeholder="Dr. Priya Sharma" autocomplete="name" required />
+            </div>
+          </div>
+
+          <div class="signin-form-group" id="reg-group-specialization">
+            <label class="signin-label" for="reg-specialization">Medical Specialization</label>
+            <div class="signin-input-wrap">
+              <svg class="signin-input-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+              <input id="reg-specialization" type="text" placeholder="e.g. General Physician, Pediatrics" />
+            </div>
+          </div>
+
+          <div class="signin-form-group">
+            <label class="signin-label" for="reg-email">Email</label>
+            <div class="signin-input-wrap">
+              <svg class="signin-input-icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              <input id="reg-email" type="email" placeholder="physician@hospital.org" autocomplete="email" required />
+            </div>
+          </div>
+
+          <div class="signin-form-group">
+            <label class="signin-label" for="reg-password">Password</label>
+            <div class="signin-input-wrap">
+              <svg class="signin-input-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <input id="reg-password" type="password" placeholder="At least 6 characters" autocomplete="new-password" minlength="6" required />
+              <button type="button" class="signin-pwd-toggle" onclick="const p=document.getElementById('reg-password'); p.type = p.type==='password'?'text':'password';" aria-label="Toggle password visibility">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="signin-form-group">
+            <label class="signin-label" for="reg-confirm-password">Confirm Password</label>
+            <div class="signin-input-wrap">
+              <svg class="signin-input-icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              <input id="reg-confirm-password" type="password" placeholder="Re-enter password" autocomplete="new-password" minlength="6" required />
+              <button type="button" class="signin-pwd-toggle" onclick="const p=document.getElementById('reg-confirm-password'); p.type = p.type==='password'?'text':'password';" aria-label="Toggle password visibility">
+                <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <p class="err" id="reg-error" style="margin-bottom:8px;"></p>
+
+          <button type="submit" class="signin-submit-btn" id="reg-submit-btn">
+            Create Doctor Account
+          </button>
+        </form>
+
+        <div class="signin-footer-link" style="margin-top:14px;">
+          Already have an account? <span class="action" onclick="window.app.go('login')">Sign In</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3C. REGISTRATION SUCCESS / EMAIL VERIFICATION PENDING SCREEN -->
+    <section class="scr" id="register-success">
+      <div class="signin-wave-box">
+        <button type="button" class="signin-back-btn" onclick="window.app.go('login', true)" aria-label="Back to Login">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#fff;"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <div class="signin-brand-center">
+          <img src="assets/logo.png" alt="Ink 2 Insight" class="signin-brand-logo-img" />
+        </div>
+
+        <svg viewBox="0 0 400 165" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="regSuccGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#FF758C"/>
+              <stop offset="50%" stop-color="#FF6B8B"/>
+              <stop offset="100%" stop-color="#D81B60"/>
+            </linearGradient>
+          </defs>
+          <rect width="400" height="165" fill="url(#regSuccGrad)" stroke="none"/>
+          <ellipse class="topo-ring" cx="200" cy="75" rx="140" ry="70" transform="rotate(-6 200 75)"/>
+          <ellipse class="topo-ring" cx="200" cy="75" rx="90" ry="45" transform="rotate(-6 200 75)"/>
+          <ellipse class="topo-ring" cx="340" cy="95" rx="110" ry="55" transform="rotate(12 340 95)"/>
+          <ellipse class="topo-ring" cx="60" cy="85" rx="95" ry="48" transform="rotate(-15 60 85)"/>
+          <path class="wave-cutout" d="M 0,125 C 90,110 160,158 270,145 C 330,135 375,112 400,102 L 400,165 L 0,165 Z"/>
+        </svg>
+      </div>
+
+      <div class="signin-content-box">
+        <div class="reg-success-box">
+          <div class="reg-success-icon-wrap">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          </div>
+
+          <h2 class="reg-success-title">Verify Your Email</h2>
+          <p class="reg-success-desc">
+            Your registration is almost complete! A verification link has been dispatched to:
+          </p>
+          <div class="reg-success-email-badge" id="reg-success-email">user@hospital.org</div>
+
+          <div class="reg-success-note">
+            <b>Important:</b> Email verification is mandatory before signing in. Please check your inbox and spam folder, click the confirmation link, and then return here to log in.
+          </div>
+
+          <button type="button" class="signin-submit-btn" style="width:100%;" onclick="window.app.go('login')">
+            Back to Login
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. HOME / DASHBOARD SCREEN -->
+    <section class="scr" id="home">
+      <div class="head">
+        <div>
+          <small class="greeting-sub">Good day,</small>
+          <h2 id="home-doctor-name" class="greeting-name">Physician</h2>
+        </div>
+        <div class="header-actions">
+          <button class="notif-bell-btn" onclick="window.app.triggerSessionTimeout()" title="Lock Station (Test Page 5: Session Expired Modal)">
+            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </button>
+          <button class="notif-bell-btn" onclick="window.app.go('records')" title="Notifications & Triage Alerts">
+            <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+            <span class="bell-badge" id="header-notif-count">0</span>
+          </button>
+          <div class="av" id="home-avatar" onclick="window.app.go('settings')" title="Doctor Profile">
+            <span>D</span>
+            <span class="avatar-status-dot"></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="body" id="home-body">
+        <!-- USER SCAN-FIRST HERO -->
+        <div id="worker-home-section" style="display:none;margin-bottom:16px;">
+          <div style="background:linear-gradient(135deg, #0d9488 0%, #047857 100%);color:#fff;border-radius:20px;padding:22px 18px;text-align:center;box-shadow:0 8px 24px rgba(13,148,136,0.25);">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:1px;opacity:0.9;margin-bottom:12px;">User Quick Intake</div>
+            <button id="worker-large-scan-btn" onclick="window.app.startScan()" style="width:100%;background:#fff;color:#047857;border:none;border-radius:16px;padding:18px 20px;font-size:17px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:10px;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,0.12);">
+              <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:#047857;fill:none;stroke-width:2.5;"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M4 12h16"/></svg>
+              <span>Scan Patient Document</span>
+            </button>
+            <div style="display:flex;justify-content:space-around;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.25);">
+              <div>
+                <div style="font-size:26px;font-weight:800;" id="worker-my-scans-count">0</div>
+                <div style="font-size:11px;opacity:0.9;">My Scans Today</div>
+              </div>
+              <div>
+                <div style="font-size:26px;font-weight:800;color:#FDE68A;" id="worker-retake-count">0</div>
+                <div style="font-size:11px;opacity:0.9;">Needs Retake</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <b style="font-size:15px;color:var(--ink);">My Records Needing Retake</b>
+              <small style="color:var(--mute);font-size:12px;" id="worker-retake-sub">0 pending</small>
+            </div>
+            <div id="worker-retake-list" style="display:flex;flex-direction:column;gap:8px;">
+              <div style="padding:16px;text-align:center;color:var(--mute);background:#fff;border-radius:14px;border:1px solid var(--line);font-size:13px;">
+                🎉 All your captured scans are clear! No retakes required.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="doctor-home-section">
+        <!-- Active Camp Dark Hero Banner -->
+        <div class="active-camp-banner" id="active-camp-card" onclick="window.app.openCampPicker()">
+          <div class="hero-ring" id="home-ring" style="--p:0;">
+            <div>
+              <b id="home-ring-pct">0%</b>
+              <span>done</span>
+            </div>
+          </div>
+          <div class="hero-details">
+            <div class="hero-tag-row">
+              <span class="hero-label">ACTIVE CAMP</span>
+              <span class="camp-status-badge" id="home-camp-status-badge">● Standby</span>
+            </div>
+            <b id="home-camp-title" class="hero-title">No Active Camp Selected</b>
+            <span id="home-camp-subtitle" class="hero-sub">Tap to create or register a camp</span>
+          </div>
+          <div class="hero-arrow">
+            <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+
+        <!-- 3 Pastel Metric Tiles -->
+        <div class="kpi-row-3">
+          <div class="kpi-tile kpi-tile-mint">
+            <div class="kpi-num" id="kpi-scanned">0</div>
+            <div class="kpi-name">Scanned</div>
+          </div>
+          <div class="kpi-tile kpi-tile-amber" onclick="window.app.go('records')" style="cursor:pointer;">
+            <div class="kpi-tile-header">
+              <div class="kpi-num" id="kpi-tocheck">0</div>
+              <span class="pulse-attention-dot" id="pulse-attention-dot" style="display:none;"></span>
+            </div>
+            <div class="kpi-name">To check</div>
+          </div>
+          <div class="kpi-tile kpi-tile-sage">
+            <div class="kpi-num" id="kpi-camps">0</div>
+            <div class="kpi-name">Camps</div>
+          </div>
+        </div>
+
+        <!-- Horizontal Camp Schedule Calendar Strip (Sample 8 & 10) -->
+        <div class="camp-calendar-strip">
+          <div class="date-chip">
+            <span class="day">Mon</span>
+            <b class="num">13</b>
+          </div>
+          <div class="date-chip">
+            <span class="day">Tue</span>
+            <b class="num">14</b>
+          </div>
+          <div class="date-chip">
+            <span class="day">Wed</span>
+            <b class="num">15</b>
+          </div>
+          <div class="date-chip active">
+            <span class="day">Thu</span>
+            <b class="num">16</b>
+            <span class="camp-dot"></span>
+          </div>
+          <div class="date-chip">
+            <span class="day">Fri</span>
+            <b class="num">17</b>
+          </div>
+          <div class="date-chip">
+            <span class="day">Sat</span>
+            <b class="num">18</b>
+          </div>
+          <div class="date-chip">
+            <span class="day">Sun</span>
+            <b class="num">19</b>
+          </div>
+        </div>
+
+        <!-- 2x2 Core Clinical Bento Grid (Sample 7, 10 & 11) -->
+        <div class="clinical-bento-grid">
+          <div class="bento-tile bento-emerald" onclick="window.app.go('export')">
+            <div class="bento-top">
+              <div class="bento-icon-box">
+                <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
+              </div>
+              <div class="bento-action-arrow">
+                <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+            </div>
+            <div class="bento-bottom">
+              <b class="bento-title">Excel Sheet</b>
+              <span class="bento-desc" id="bento-excel-rows">0 rows ready</span>
+            </div>
+          </div>
+
+          <div class="bento-tile bento-sky" onclick="window.app.go('analytics')">
+            <div class="bento-top">
+              <div class="bento-icon-box">
+                <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+              </div>
+              <div class="bento-action-arrow">
+                <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+            </div>
+            <div class="bento-bottom">
+              <b class="bento-title">Camp Analytics</b>
+              <span class="bento-desc">Vitals & telemetry</span>
+            </div>
+          </div>
+
+          <div class="bento-tile bento-amber" onclick="window.app.go('records')">
+            <div class="bento-top">
+              <div class="bento-icon-box">
+                <svg viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+              </div>
+              <div class="bento-badge-amber" id="bento-tocheck-badge">0 to check</div>
+            </div>
+            <div class="bento-bottom">
+              <b class="bento-title">Review Queue</b>
+              <span class="bento-desc">Verify records</span>
+            </div>
+          </div>
+
+          <div class="bento-tile bento-rose" onclick="window.app.openNewCampModal()">
+            <div class="bento-top">
+              <div class="bento-icon-box">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+              </div>
+              <div class="bento-action-arrow">
+                <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+              </div>
+            </div>
+            <div class="bento-bottom">
+              <b class="bento-title">+ Add Camp</b>
+              <span class="bento-desc">Screening drive</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Intake Telemetry & EKG Waveform Strip -->
+        <div class="vitals-telemetry-card" onclick="window.app.go('analytics')">
+          <div class="telemetry-info">
+            <span class="telemetry-label">Live OCR Intake Engine</span>
+            <div class="telemetry-val">
+              <b>Vision AI</b>
+              <span>Active</span>
+            </div>
+            <div class="telemetry-meta">
+              <span class="live-dot-mini"></span>
+              <span id="telemetry-engine-badge">Vision AI Dual-Page · Ready</span>
+            </div>
+          </div>
+          <div class="telemetry-ekg-wrap">
+            <svg viewBox="0 0 140 40" class="ekg-svg">
+              <path class="ekg-path" d="M0,20 L30,20 L36,12 L42,32 L48,4 L54,28 L60,20 L85,20 L91,10 L97,34 L103,2 L109,30 L115,20 L140,20" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- Automated Clinical Triage Alert Card -->
+        <div class="triage-alert-card" id="home-triage-card" onclick="window.app.go('records')" style="display:none;">
+          <div class="triage-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div class="triage-body">
+            <div class="triage-header">
+              <b class="triage-title">Clinical Triage Attention</b>
+              <span class="triage-badge">Priority Review</span>
+            </div>
+            <p class="triage-desc" id="home-triage-desc">Awaiting intake records...</p>
+          </div>
+          <div class="triage-arrow">
+            <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+
+        <!-- Organizations & Committees Section -->
+        <div class="sec">
+          <div>
+            <h3 style="margin-bottom:2px;">Organizations & Committees</h3>
+            <small style="color:var(--mute);font-size:12px;">Records and Excels maintained per club / committee</small>
+          </div>
+          <button onclick="window.app.openNewCampModal()">+ Add Club / Org</button>
+        </div>
+        <div id="camps-list">
+          <!-- Rendered via JS -->
+        </div>
+
+        <!-- Recent Records Section -->
+        <div class="sec">
+          <h3>Recent Intake Records</h3>
+          <button onclick="window.app.go('records')">View all</button>
+        </div>
+        <div id="recent-records-list">
+          <!-- Rendered via JS -->
+        </div>
+        </div> <!-- /#doctor-home-section -->
+      </div>
+
+      <!-- Floating Frosted Glass Bottom Navigation -->
+      <div class="nav">
+        <button class="on" id="nav-btn-home" onclick="window.app.go('home')">
+          <svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9H4z"/></svg>
+          Home
+        </button>
+        <button id="nav-btn-records" onclick="window.app.go('records')">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          Records
+        </button>
+        <button class="go" aria-label="Scan a record" onclick="window.app.startScan()">
+          <svg viewBox="0 0 24 24" style="width:28px;height:28px;"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M4 12h16"/></svg>
+        </button>
+        <button id="nav-btn-analytics" onclick="window.app.go('analytics')">
+          <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          Analytics
+        </button>
+        <button id="nav-btn-settings" onclick="window.app.go('settings')">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Profile
+        </button>
+      </div>
+    </section>
+
+    <!-- 5. REAL CAMERA SCANNER SCREEN -->
+    <section class="scr" id="scan">
+      <div class="top">
+        <button class="back" aria-label="Close" onclick="window.app.closeScan()">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+        <b id="stl">Scan Page 1: Vitals & Details</b>
+      </div>
+
+      <div class="steps">
+        <i id="s1" class="on"></i>
+        <i id="s2"></i>
+        <i id="s3"></i>
+      </div>
+
+      <div class="vf" id="vf-container">
+        <!-- Live Video Element -->
+        <video id="camera-video" playsinline autoplay muted></video>
+        <canvas id="capture-canvas" style="display:none;"></canvas>
+
+        <!-- Simulated Sheet Preview Placeholder if camera off -->
+        <div class="sheet" id="sh" data-t="Health intake form · Page 1">
+          <b>Name</b>: __________________<br>
+          <b>Age</b>: _____ <b>Gender</b>: ______<br>
+          <b>BP</b>: ________ <b>Pulse</b>: ____<br>
+          <small style="display:block;margin-top:10px;color:#7c8c9c;">Center paper form inside the yellow brackets.</small>
+        </div>
+
+        <!-- Target Overlay Brackets & Animated Laser -->
+        <i class="cr a"></i>
+        <i class="cr b"></i>
+        <i class="cr c"></i>
+        <i class="cr d"></i>
+        <i class="ln"></i>
+        <div class="flash" id="fl"></div>
+      </div>
+
+      <p class="hint" id="hnt">Fit the entire page inside the corners</p>
+
+      <!-- Processing Indicator -->
+      <div id="processing" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(0,0,0,0.8);padding:20px 30px;border-radius:12px;z-index:9999;text-align:center;color:#fff;">
+        <div style="font-size:28px;margin-bottom:10px;">⏳</div>
+        <div style="font-size:14px;font-weight:500;">Processing photo...</div>
+      </div>
+
+      <!-- Shutter Controls & Live Thumbnails -->
+      <div class="ctl">
+        <div class="th" id="t1" title="Page 1 preview (tap to retake)" onclick="window.app.retakePage(0)" style="cursor:pointer;"></div>
+        <button class="shut" id="shutter-button" aria-label="Capture page" onclick="window.app.captureCurrentPage()">
+          <i></i>
+        </button>
+        <div class="th" id="t2" title="Page 2 preview (tap to retake)" onclick="window.app.retakePage(1)" style="cursor:pointer;"></div>
+      </div>
+
+      <!-- Quick Action Utilities -->
+      <div class="scan-utils-bar">
+        <input type="file" id="camera-photo-input" accept="image/*" capture="environment" style="display:none;" onchange="window.app.onFileUploaded(event)">
+        <input type="file" id="camera-gallery-input" accept="image/*" style="display:none;" onchange="window.app.onFileUploaded(event)" multiple>
+        <button type="button" class="btn ghost" id="btn-take-photo" onclick="window.app.takePhotoWithCamera()">
+          <svg viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Take Photo
+        </button>
+        <button type="button" class="btn ghost" id="btn-upload-gallery" onclick="window.app.uploadFromGallery()">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Upload from Gallery
+        </button>
+        <button type="button" class="btn ghost" onclick="window.app.flipCamera()">
+          <svg viewBox="0 0 24 24"><path d="M1 4v6h6M23 20v-6h-6"/><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"/></svg>
+          Flip Camera
+        </button>
+        <button type="button" class="btn ghost" id="btn-toggle-torch" onclick="window.app.toggleTorch()" style="display:none;">
+          <span style="font-size:15px;">🔦</span>
+          <span id="torch-btn-text">Torch</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- 6. PAIRS CHECK SCREEN -->
+    <section class="scr" id="pairs">
+      <div class="top">
+        <button class="back" aria-label="Back" onclick="window.app.backToScan()">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <b>Check the Pair</b>
+      </div>
+      <div class="body">
+        <p style="color:var(--mute);margin-top:10px;">Verify both captured pages belong to the same patient.</p>
+        
+        <div class="pair">
+          <div class="sheet" id="pairs-p1-preview" data-t="Page 1: Vitals & Details" style="position:relative;cursor:pointer;" onclick="window.app.retakePage(0)">
+            <span id="pairs-t1-badge" class="tag" style="display:none;position:absolute;top:8px;left:8px;background:rgba(14,124,107,0.9);color:#fff;font-size:11px;font-weight:700;z-index:2;padding:3px 8px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,0.15);"></span>
+            <button type="button" class="pairs-retake-btn" id="btn-retake-p1" onclick="event.stopPropagation(); window.app.retakePage(0)" title="Retake Page 1">
+              🔄 Retake
+            </button>
+          </div>
+          <div class="sheet" id="pairs-p2-preview" data-t="Page 2: Exam & Referral" style="position:relative;cursor:pointer;" onclick="window.app.retakePage(1)">
+            <span id="pairs-t2-badge" class="tag" style="display:none;position:absolute;top:8px;left:8px;background:rgba(14,124,107,0.9);color:#fff;font-size:11px;font-weight:700;z-index:2;padding:3px 8px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,0.15);"></span>
+            <button type="button" class="pairs-retake-btn" id="btn-retake-p2" onclick="event.stopPropagation(); window.app.retakePage(1)" title="Retake Page 2">
+              🔄 Retake
+            </button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:8px;margin:8px 0 10px;">
+          <button type="button" class="btn ghost" id="pairs-retake-p1-btn" style="flex:1;font-size:12px;padding:8px 6px;" onclick="window.app.retakePage(0)">
+            🔄 Retake Page 1
+          </button>
+          <button type="button" class="btn ghost" id="pairs-retake-p2-btn" style="flex:1;font-size:12px;padding:8px 6px;" onclick="window.app.retakePage(1)">
+            🔄 Retake Page 2
+          </button>
+        </div>
+
+        <button type="button" class="btn ghost" id="pairs-swap-btn" style="margin:4px 0 12px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:700;color:var(--teal);border-color:var(--teal);" onclick="window.app.swapScanPages()">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:currentColor;"><path d="M6.99 11L3 15l3.99 4v-3H14v-2H6.99v-3zM21 9l-3.99-4v3H10v2h7.01v3L21 9z"/></svg>
+          Swap Page 1 &amp; Page 2 Slots
+        </button>
+
+        <div id="pairs-swap-alert" style="display:none;background:#FFFBEB;border:1.5px solid #F59E0B;border-radius:12px;padding:12px 14px;margin-bottom:12px;color:#92400E;font-size:12.5px;">
+          <div style="font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span>⚠️</span> Possible Page Swap Detected
+          </div>
+          <p style="margin:0 0 8px;font-size:12px;color:#78350F;line-height:1.4;">Slot 1 appears to contain Page 2 (Clinical Exam) while Slot 2 appears to contain Page 1. Tap below to swap them into the correct order.</p>
+          <button type="button" class="btn" style="background:#D97706;color:#fff;padding:6px 14px;font-size:11.5px;font-weight:700;width:auto;" onclick="window.app.swapScanPages()">
+            🔀 Swap Slots Now
+          </button>
+        </div>
+
+        <div id="pairs-family-warning" style="display:none;background:#FEF2F2;border:1.5px solid #EF4444;border-radius:12px;padding:12px 14px;margin-bottom:12px;color:#991B1B;font-size:12.5px;">
+          <div style="font-weight:700;display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+            <span>⚠️</span> Mismatched Form Family Warning
+          </div>
+          <p id="pairs-family-warning-msg" style="margin:0;font-size:12px;color:#7F1D1D;line-height:1.4;">
+            Page 1 and Page 2 appear to be from different form families. Verify both pages belong to the same patient form set before transcribing.
+          </p>
+        </div>
+
+        <label for="pairs-camp-input" style="font-weight:700;color:var(--ink);font-size:13.5px;display:flex;justify-content:space-between;align-items:center;">
+          <span>File Under Organization / Club / Committee</span>
+          <span style="font-size:11px;font-weight:600;color:var(--teal2);">Type or select</span>
+        </label>
+        <div style="position:relative;margin-top:4px;">
+          <input 
+            id="pairs-camp-input" 
+            list="pairs-camp-datalist" 
+            placeholder="Type or select Organization / Club / Committee..." 
+            style="border:1.5px solid var(--teal);font-weight:600;background:var(--input-bg);color:var(--ink);width:100%;padding:10px 14px;border-radius:10px;font-size:14px;box-sizing:border-box;" 
+            autocomplete="off"
+            autocapitalize="words"
+          >
+          <datalist id="pairs-camp-datalist"></datalist>
+          <select id="pairs-camp-select" style="display:none;"></select>
+        </div>
+
+        <label for="pairs-person-name" style="margin-top:8px;">Patient Name (Optional pre-check)</label>
+        <input id="pairs-person-name" placeholder="Patient Full Name">
+
+        <p class="err" id="pairs-err"></p>
+
+        <button class="btn" id="extract-run-btn" style="margin-top:6px;" onclick="window.app.saveAndExtract()">
+          <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          Save & Transcribe Document Pages
+        </button>
+        
+        <button class="btn ghost" style="margin-top:10px;" onclick="window.app.startScan()">
+          Retake Pages
+        </button>
+      </div>
+    </section>
+
+    <!-- 7. HUMAN-IN-THE-LOOP CLINICAL REVIEW SCREEN (HYBRID POWER) -->
+    <section class="scr" id="review">
+      <div class="top">
+        <button class="back" aria-label="Back" onclick="window.app.goBack()">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <b id="review-title">Physician Verification</b>
+        <span class="tag" id="review-status-tag">To check</span>
+      </div>
+
+      <div class="body">
+        <!-- Patient Summary Bar -->
+        <div class="clinical-card" style="padding:12px;margin:12px 0 10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <b id="review-patient-heading" style="font-size:16px;">Patient Name</b>
+              <small id="review-camp-label" style="display:block;color:var(--mute);">Health Camp</small>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn ghost" style="width:auto;padding:6px 12px;font-size:12px;" onclick="window.app.toggleReviewDocs()">
+                📄 Images
+              </button>
+            </div>
+          </div>
+
+          <!-- Concurrency Review Lock Warning Banner -->
+          <div id="review-lock-alert" style="display:none;background:#FEF2F2;border:1px solid #DC2626;border-radius:10px;padding:9px 12px;margin-top:10px;align-items:center;gap:8px;color:#991B1B;font-size:12px;">
+            <span style="font-size:16px;">🔒</span>
+            <span id="review-lock-msg">This record is currently locked for review by another physician.</span>
+          </div>
+
+          <!-- Collapsible Scanned Document Previews -->
+          <div id="review-docs-box" style="display:none;margin-top:12px;border-top:1px solid var(--line);padding-top:10px;">
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;">
+                <small style="font-weight:600;display:block;margin-bottom:4px;">Page 1 Source</small>
+                <img id="review-p1-img" style="width:100%;border-radius:8px;border:1px solid var(--line);max-height:160px;object-fit:contain;background:#f0f4f3;" alt="Page 1 preview">
+              </div>
+              <div style="flex:1;">
+                <small style="font-weight:600;display:block;margin-bottom:4px;">Page 2 Source</small>
+                <img id="review-p2-img" style="width:100%;border-radius:8px;border:1px solid var(--line);max-height:160px;object-fit:contain;background:#f0f4f3;" alt="Page 2 preview">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Optical Quality Bypassed Telemetry Banner -->
+        <div id="review-quality-bypassed-alert" style="display:none;background:#FFFBEB;border:1px solid #F59E0B;border-radius:10px;padding:9px 12px;margin-bottom:12px;align-items:center;gap:8px;color:#92400E;font-size:12px;">
+          <span style="font-size:16px;">⚠️</span>
+          <span id="review-quality-bypassed-msg">Pre-flight optical quality warning was bypassed during intake. Verify all transcribed vitals against source document.</span>
+        </div>
+
+        <!-- Clinical Decision Support & Triage Alerts -->
+        <div id="review-clinical-alerts" style="display:none; flex-direction:column; gap:8px; margin-bottom:14px;">
+          <!-- Duplicate Patient Registration Alert Banner -->
+          <div id="alert-duplicate-patient" style="display:none; background:#FFFBEB; border-left:4px solid #F59E0B; border-radius:10px; padding:10px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:16px;">👥</span>
+                <b style="font-size:13px; color:#92400E;">Potential Duplicate Intake Detected</b>
+              </div>
+              <span class="tag" style="background:#FDE68A; color:#92400E; font-size:10.5px; font-weight:700;">Same Camp Match</span>
+            </div>
+            <p id="alert-duplicate-patient-msg" style="font-size:12px; color:#78350F; margin:4px 0 0; line-height:1.4;">
+              A patient with this name was already scanned in this outreach camp today.
+            </p>
+          </div>
+
+          <!-- High BMI Alert Banner -->
+          <div id="alert-high-bmi" style="display:none; background:#FEF2F2; border-left:4px solid #DC2626; border-radius:10px; padding:10px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:16px;">🚨</span>
+                <b id="bmi-alert-title" style="font-size:13px; color:#991B1B;">High BMI Alert</b>
+              </div>
+              <span id="bmi-alert-badge" style="font-size:11px; font-weight:800; background:#DC2626; color:#fff; padding:2px 8px; border-radius:12px;">-- kg/m²</span>
+            </div>
+            <p id="bmi-alert-desc" style="font-size:12px; color:#7F1D1D; margin:4px 0 0; line-height:1.4;">
+              Patient falls in Obese Category. Endocrine & lifestyle intervention recommended.
+            </p>
+            <div id="bmi-pediatric-note" style="display:none; font-size:11px; color:#B91C1C; font-weight:600; margin-top:4px;">
+              ⚠️ Pediatric Student: Clinical assessment requires IAP / WHO percentile chart evaluation.
+            </div>
+          </div>
+
+          <!-- Hypertension / BP Crisis Banner -->
+          <div id="alert-hypertension" style="display:none; background:#FFFBEB; border-left:4px solid #D97706; border-radius:10px; padding:10px 14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:16px;">🩸</span>
+                <b id="bp-alert-title" style="font-size:13px; color:#92400E;">Blood Pressure Alert</b>
+              </div>
+              <span id="bp-alert-badge" style="font-size:11px; font-weight:800; background:#D97706; color:#fff; padding:2px 8px; border-radius:12px;">--/--</span>
+            </div>
+            <p id="bp-alert-desc" style="font-size:12px; color:#78350F; margin:4px 0 0; line-height:1.4;">
+              Blood pressure reading outside normal adult limits.
+            </p>
+          </div>
+
+          <!-- Missing Essential Fields Warning Card -->
+          <div id="alert-missing-fields" style="display:none; background:#EFF6FF; border-left:4px solid #2563EB; border-radius:10px; padding:10px 14px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:16px;">⚠️</span>
+              <b id="missing-fields-title" style="font-size:13px; color:#1E40AF;">Missing Essential Fields</b>
+            </div>
+            <p id="missing-fields-desc" style="font-size:12px; color:#1E3A8A; margin:4px 0 0; line-height:1.4;">
+              Essential clinical fields are unrecorded. Please cross-reference with the physical document.
+            </p>
+          </div>
+
+          <!-- Critical Red Flags (Pallor, Cyanosis, Allergies) -->
+          <div id="alert-red-flags" style="display:none; background:#FFF1F2; border-left:4px solid #E11D48; border-radius:10px; padding:8px 12px; font-size:12px; color:#9F1239; font-weight:600;">
+          </div>
+
+          <!-- Paediatric Screening Alerts Banner (IAP LMS Centiles & ATR Caliper) -->
+          <div id="alert-paediatric-screening" style="display:none; background:#F5F3FF; border-left:4px solid #7C3AED; border-radius:10px; padding:10px 14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:16px;">🧒</span>
+                <b style="font-size:13px; color:#5B21B6;">Paediatric Growth & Screening Alerts (IAP / AAP)</b>
+              </div>
+              <span id="paediatric-alerts-badge" style="font-size:11px; font-weight:800; background:#7C3AED; color:#fff; padding:2px 8px; border-radius:12px;">--</span>
+            </div>
+            <div id="paediatric-alerts-desc" style="font-size:12px; color:#4C1D95; margin:6px 0 0; line-height:1.4;">
+            </div>
+          </div>
+        </div>
+
+        <!-- 8-Section Category Tabs -->
+        <div class="review-tabs" id="static-review-tabs">
+          <button class="review-tab-btn active" id="rtab-personal" onclick="window.app.switchReviewTab('personal')">1. Personal & Vitals</button>
+          <button class="review-tab-btn" id="rtab-medical" onclick="window.app.switchReviewTab('medical')">2. Medical History</button>
+          <button class="review-tab-btn" id="rtab-family" onclick="window.app.switchReviewTab('family')">3. Family History</button>
+          <button class="review-tab-btn" id="rtab-health" onclick="window.app.switchReviewTab('health')">4. Assessment</button>
+          <button class="review-tab-btn" id="rtab-system" onclick="window.app.switchReviewTab('system')">5. Systemic Exam</button>
+          <button class="review-tab-btn" id="rtab-vision" onclick="window.app.switchReviewTab('vision')">6. Vision & Dental</button>
+          <button class="review-tab-btn" id="rtab-referral" onclick="window.app.switchReviewTab('referral')">7. Referral & Sign</button>
+        </div>
+
+        <!-- Dynamic Template UI Tabs (gated by USE_TEMPLATE_UI=1) -->
+        <div class="review-tabs" id="dynamic-review-tabs" style="display:none;"></div>
+
+        <!-- Section 1: Personal Information & Vitals -->
+        <div class="review-section active" id="rsec-personal">
+          <!-- Informed Consent Gating Card -->
+          <div id="consent-gating-card" style="background:#F0FDF4; border:1.5px solid #86EFAC; border-radius:10px; padding:10px 14px; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <input type="checkbox" id="rev-consent-screening" checked onchange="window.app.onConsentChanged()" style="width:18px;height:18px;accent-color:#16A34A;cursor:pointer;">
+              <label for="rev-consent-screening" style="font-size:13px; font-weight:700; color:#166534; cursor:pointer; margin:0;">
+                Informed Screening Consent Granted
+              </label>
+            </div>
+            <div id="alert-consent-withheld" style="display:none; margin-top:8px; background:#FEF2F2; border-left:4px solid #DC2626; border-radius:6px; padding:8px 10px; font-size:11.5px; color:#991B1B; font-weight:600;">
+              ⚠️ Consent Withheld: Patient or parental consent is required before clinical record approval or data export.
+            </div>
+          </div>
+
+          <div class="form-grid single">
+            <div>
+              <label for="rev-name">Full Name <span class="field-badge-warn" id="badge-name" style="display:none;">Check value</span></label>
+              <input id="rev-name" placeholder="Patient Full Name" oninput="window.app.onVitalsChanged()">
+              <div class="crop-snippet-preview" id="crop-preview-name" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
+                <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
+                <canvas id="crop-canvas-name" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="rev-age">Age</label>
+              <input id="rev-age" placeholder="Age" oninput="window.app.onVitalsChanged()">
+            </div>
+            <div>
+              <label for="rev-gender">Gender</label>
+              <select id="rev-gender" onchange="window.app.onVitalsChanged()">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="rev-blood-group">Blood Group</label>
+              <input id="rev-blood-group" placeholder="Blood Group (A+, B+, O+, etc.)">
+            </div>
+            <div>
+              <label for="rev-dob">Date of Birth</label>
+              <input id="rev-dob" placeholder="DD/MM/YYYY">
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="rev-doc-id">Document ID</label>
+              <input id="rev-doc-id" placeholder="DOC-XXXX">
+            </div>
+            <div>
+              <label for="rev-adm-id">Admission / Roll ID</label>
+              <input id="rev-adm-id" placeholder="ADM-XXXX">
+            </div>
+          </div>
+
+          <div class="form-grid single">
+            <div>
+              <label for="rev-school">School / College Name</label>
+              <input id="rev-school" placeholder="Institution Name">
+            </div>
+            <div>
+              <label for="rev-mobile">Mobile Number</label>
+              <input id="rev-mobile" placeholder="Phone Number">
+            </div>
+            <div>
+              <label for="rev-address">Residential Address</label>
+              <input id="rev-address" placeholder="Address">
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="rev-height">Height (cm)</label>
+              <input id="rev-height" placeholder="Height in cm" oninput="window.app.onVitalsChanged()">
+            </div>
+            <div>
+              <label for="rev-weight">Weight (kg)</label>
+              <input id="rev-weight" placeholder="Weight in kg" oninput="window.app.onVitalsChanged()">
+            </div>
+          </div>
+
+          <!-- Real-Time Interactive Live BMI Indicator -->
+          <div style="display:flex; align-items:center; justify-content:space-between; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:7px 14px; margin-bottom:12px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:14px;">⚖️</span>
+              <span style="font-size:12px; font-weight:700; color:#475569;">Live BMI Calculator:</span>
+            </div>
+            <span id="rev-calculated-bmi" style="font-size:12px; font-weight:800; color:#0284C7; background:#E0F2FE; padding:3px 10px; border-radius:12px;">-- kg/m²</span>
+          </div>
+
+          <!-- PAEDIATRIC GROWTH & IAP PERCENTILE PANEL (Active for Age < 18 or School Health) -->
+          <div id="paediatric-growth-card" style="display:none; background:linear-gradient(135deg, #FAF5FF 0%, #F3E8FF 100%); border:1.5px solid #C084FC; border-radius:14px; padding:12px 14px; margin-bottom:14px; box-shadow:0 2px 4px rgba(124,58,237,0.06);">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:18px;">🧒</span>
+                <div>
+                  <b style="font-size:13px; color:#581C87;">Paediatric Screening Engine (IAP 2015 / WHO)</b>
+                  <small style="display:block; font-size:11px; color:#7E22CE;" id="paediatric-growth-subtitle">Age- & Sex-adjusted Growth Monitoring</small>
+                </div>
+              </div>
+              <span class="tag" id="paediatric-status-pill" style="background:#7C3AED; color:#ffffff; font-size:11px; font-weight:700;">Paediatric Mode</span>
+            </div>
+
+            <!-- Grid: BMI Percentile & BP Percentile -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:8px;">
+              <!-- 1. IAP BMI-for-Age Centile -->
+              <div style="background:#ffffff; border:1px solid #E9D5FF; border-radius:10px; padding:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <small style="font-size:11px; font-weight:700; color:#6B21A8; text-transform:uppercase;">BMI-for-Age (IAP)</small>
+                  <b id="paediatric-bmi-centile-badge" style="font-size:12px; color:#7C3AED;">-- th Centile</b>
+                </div>
+                <div id="paediatric-nutrition-category" style="font-size:13px; font-weight:800; color:#1E293B; margin-top:4px;">
+                  Normal Weight
+                </div>
+                <!-- Visual Centile Progress Bar -->
+                <div style="background:#F1F5F9; border-radius:6px; height:8px; overflow:hidden; margin-top:6px; position:relative;">
+                  <div id="paediatric-centile-progress" style="width:50%; height:100%; background:linear-gradient(90deg, #F59E0B 0%, #10B981 30%, #10B981 70%, #EF4444 100%); transition:width 0.3s ease;"></div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:9.5px; color:#94A3B8; margin-top:3px;">
+                  <span>&lt;3rd (SAM)</span>
+                  <span>15th-85th</span>
+                  <span>&gt;95th (Obese)</span>
+                </div>
+              </div>
+
+              <!-- 2. Paediatric BP-for-Height Centile -->
+              <div style="background:#ffffff; border:1px solid #E9D5FF; border-radius:10px; padding:10px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <small style="font-size:11px; font-weight:700; color:#6B21A8; text-transform:uppercase;">BP Staging (AAP/IAP)</small>
+                  <span class="tag" id="paediatric-bp-stage-pill" style="font-size:10.5px; font-weight:700; background:#ECFDF5; color:#059669;">Normal BP</span>
+                </div>
+                <div id="paediatric-bp-reference-info" style="font-size:11.5px; color:#475569; margin-top:6px; line-height:1.3;">
+                  Ref 90th / 95th: <b id="paediatric-bp-thresholds">--/-- mmHg</b>
+                </div>
+                <small id="paediatric-bp-clinical-note" style="display:block; font-size:10.5px; color:#64748B; margin-top:4px;">
+                  Within normal limits for age and height.
+                </small>
+              </div>
+            </div>
+
+            <!-- Adams Forward Bend Test (ATR) Scoliosis Row -->
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#ffffff; border:1px solid #E9D5FF; border-radius:10px; padding:8px 12px; margin-top:10px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:15px;">📐</span>
+                <div>
+                  <small style="font-size:11px; font-weight:700; color:#6B21A8; text-transform:uppercase;">Adams Forward Bend Test (ATR):</small>
+                  <span id="paediatric-atr-alert-badge" class="tag" style="display:none; font-size:10.5px; background:#FEF3C7; color:#92400E; margin-left:6px;">Scoliosis Review (&ge;5&deg;)</span>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <input id="rev-atr" type="number" step="0.5" placeholder="0" oninput="window.app.onVitalsChanged()" style="width:65px; height:30px; font-size:12px; text-align:center; padding:0 4px; border:1px solid #CBD5E1; border-radius:6px; background:#fff;">
+                <span style="font-size:12px; font-weight:700; color:#64748B;">&deg;</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="rev-bp">Blood Pressure <span class="field-badge-warn" id="badge-bp" style="display:none;">Check value</span></label>
+              <input id="rev-bp" placeholder="120/80" oninput="window.app.onVitalsChanged()">
+              <div class="crop-snippet-preview" id="crop-preview-bp" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
+                <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
+                <canvas id="crop-canvas-bp" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
+              </div>
+            </div>
+            <div>
+              <label for="rev-pulse">Pulse (bpm)</label>
+              <input id="rev-pulse" placeholder="Pulse bpm" oninput="window.app.onVitalsChanged()">
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="rev-rbs">RBS (mg/dL)</label>
+              <input id="rev-rbs" placeholder="RBS mg/dL">
+            </div>
+            <div>
+              <label for="rev-waist">Waist (cm)</label>
+              <input id="rev-waist" placeholder="Waist cm">
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 2: Medical History -->
+        <div class="review-section" id="rsec-medical">
+          <label for="rev-allergies">Known Allergies <span class="field-badge-warn" id="badge-allergies" style="display:none;">Check value</span></label>
+          <input id="rev-allergies" placeholder="No known allergies / details" oninput="window.app.onVitalsChanged()">
+          <div class="crop-snippet-preview" id="crop-preview-allergies" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
+            <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
+            <canvas id="crop-canvas-allergies" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
+          </div>
+
+          <label for="rev-surgery">Previous Surgery / Hospitalization</label>
+          <input id="rev-surgery" placeholder="Surgery / Hospitalization details">
+
+          <label for="rev-medications">Current / Previous Medications</label>
+          <input id="rev-medications" placeholder="Medications details">
+
+          <label for="rev-abdominal">Abdominal Pain / Constipation / Indigestion</label>
+          <input id="rev-abdominal" placeholder="None / details">
+
+          <label for="rev-ent">Skin / Hair / ENT Problems</label>
+          <input id="rev-ent" placeholder="None / details">
+
+          <label for="rev-activity">Physical Activity / Exercise</label>
+          <input id="rev-activity" placeholder="Daily walking, gym, etc.">
+
+          <label for="rev-social">Social History (Alcohol / Smoking)</label>
+          <input id="rev-social" placeholder="Non-smoker, occasional, etc.">
+        </div>
+
+        <!-- Section 3: Family History -->
+        <div class="review-section" id="rsec-family">
+          <label for="rev-fam-diabetes">Family: Diabetes</label>
+          <input id="rev-fam-diabetes" placeholder="Relationship / Details">
+
+          <label for="rev-fam-hypertension">Family: Hypertension</label>
+          <input id="rev-fam-hypertension" placeholder="Relationship / Details">
+
+          <label for="rev-fam-heart">Family: Heart Disease</label>
+          <input id="rev-fam-heart" placeholder="None / details">
+
+          <label for="rev-fam-thyroid">Family: Thyroid</label>
+          <input id="rev-fam-thyroid" placeholder="None / details">
+
+          <label for="rev-fam-asthma">Family: Asthma</label>
+          <input id="rev-fam-asthma" placeholder="None / details">
+
+          <label for="rev-fam-other">Family: Other Conditions</label>
+          <input id="rev-fam-other" placeholder="None">
+        </div>
+
+        <!-- Section 4: Health Assessment -->
+        <div class="review-section" id="rsec-health">
+          <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+            <button type="button" class="btn ghost" style="width:auto; padding:6px 14px; font-size:12px; font-weight:700; color:#059669; border-color:#10B981; background:#ECFDF5;" onclick="window.app.markPhysicalExamNormal()">
+              ✨ Quick-Fill Physical Exam as Normal (NAD)
+            </button>
+          </div>
+          <div class="form-grid">
+            <div>
+              <label for="rev-pallor">Pallor</label>
+              <input id="rev-pallor" placeholder="Absent / Present" oninput="window.app.onVitalsChanged()">
+            </div>
+            <div>
+              <label for="rev-icterus">Icterus</label>
+              <input id="rev-icterus" placeholder="Absent / Present">
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="rev-cyanosis">Cyanosis</label>
+              <input id="rev-cyanosis" placeholder="Absent" oninput="window.app.onVitalsChanged()">
+            </div>
+            <div>
+              <label for="rev-edema">Edema</label>
+              <input id="rev-edema" placeholder="Absent" oninput="window.app.onVitalsChanged()">
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <div>
+              <label for="rev-clubbing">Clubbing</label>
+              <input id="rev-clubbing" placeholder="Absent" oninput="window.app.onVitalsChanged()">
+            </div>
+            <div>
+              <label for="rev-lymph">Lymphadenopathy</label>
+              <input id="rev-lymph" placeholder="Absent">
+            </div>
+          </div>
+
+          <label for="rev-ecg">ECG Findings</label>
+          <input id="rev-ecg" placeholder="Normal sinus rhythm">
+
+          <label for="rev-echo">Echo Findings</label>
+          <input id="rev-echo" placeholder="Normal">
+        </div>
+
+        <!-- Section 5: Systemic Examination -->
+        <div class="review-section" id="rsec-system">
+          <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
+            <button type="button" class="btn ghost" style="width:auto; padding:6px 14px; font-size:12px; font-weight:700; color:#059669; border-color:#10B981; background:#ECFDF5;" onclick="window.app.markPhysicalExamNormal()">
+              ✨ Quick-Fill Systemic Exam as Normal (NAD)
+            </button>
+          </div>
+          <label for="rev-sys-rs">Respiratory System (RS)</label>
+          <input id="rev-sys-rs" placeholder="Normal vesicular breath sounds">
+
+          <label for="rev-sys-cvs">Cardiovascular System (CVS)</label>
+          <input id="rev-sys-cvs" placeholder="S1 S2 heard, no murmurs">
+
+          <label for="rev-sys-abdomen">Abdomen Examination</label>
+          <input id="rev-sys-abdomen" placeholder="Soft, non-tender, no organomegaly">
+
+          <label for="rev-sys-cns">Central Nervous System (CNS)</label>
+          <input id="rev-sys-cns" placeholder="Conscious, oriented, normal">
+
+          <label for="rev-sys-ent">Ear, Nose, Throat</label>
+          <input id="rev-sys-ent" placeholder="Normal">
+
+          <label for="rev-sys-skin">Skin & Hair</label>
+          <input id="rev-sys-skin" placeholder="Normal">
+        </div>
+
+        <!-- Section 6: Vision & Dental -->
+        <div class="review-section" id="rsec-vision">
+          <div class="form-grid">
+            <div>
+              <label for="rev-va-right">Distant Vision Right</label>
+              <input id="rev-va-right" placeholder="6/6">
+            </div>
+            <div>
+              <label for="rev-va-left">Distant Vision Left</label>
+              <input id="rev-va-left" placeholder="6/6">
+            </div>
+          </div>
+
+          <label for="rev-vision-category">Vision Category</label>
+          <input id="rev-vision-category" placeholder="Unaided / With Glasses">
+
+          <label for="rev-dental-status">Dental Examination</label>
+          <input id="rev-dental-status" placeholder="Normal / Caries noted">
+
+          <label for="rev-dental-advice">Dental Advice / Recommendations</label>
+          <input id="rev-dental-advice" placeholder="Brushing twice daily, Dental OPD">
+        </div>
+
+        <!-- Section 7: Referral & Sign -->
+        <div class="review-section" id="rsec-referral">
+          <label for="rev-referral">Specialist Referred To</label>
+          <input id="rev-referral" placeholder="None / Dental / Ophthalmology OPD">
+
+          <label for="rev-doc-sign">Doctor Signature Present</label>
+          <input id="rev-doc-sign" placeholder="Present / Signed">
+
+          <label for="rev-doctor-notes">Physician Clinical Notes</label>
+          <textarea id="rev-doctor-notes" rows="3" placeholder="Verified and endorsed by attending camp doctor…"></textarea>
+
+          <!-- Attending Physician Signature Pad -->
+          <div class="signature-card">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <b style="font-size:13px;color:var(--ink);">Attending Physician Signature</b>
+              <button class="btn ghost" style="width:auto;padding:2px 8px;font-size:11px;" type="button" onclick="window.app.clearSignature()">Clear</button>
+            </div>
+            <div class="signature-pad-wrapper">
+              <canvas id="doctor-sig-canvas"></canvas>
+            </div>
+            <small style="color:var(--mute);font-size:11px;">Sign with finger or stylus to confirm clinical review under human oversight.</small>
+          </div>
+
+          <div class="samd-banner">
+            <b>SaMD Compliance:</b> Automated OCR extraction is assistive and requires physician verification before export or prescription dispatch.
+          </div>
+        </div>
+
+        <!-- Dynamic Template UI Content Container (gated by USE_TEMPLATE_UI=1) -->
+        <div id="dynamic-review-content" style="display:none;"></div>
+
+        <!-- Fixed Action Button -->
+        <div style="margin-top:20px;padding-bottom:10px;">
+          <button class="btn" id="approve-btn" onclick="window.app.approveAndSaveRecord()">
+            <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M5 12l5 5L20 7"/></svg>
+            Approve & Bill Paper
+          </button>
+          <button class="btn ghost" id="save-draft-btn" style="border:1.5px solid var(--line);margin-top:10px;" onclick="window.app.saveDraftReview()">
+            <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg>
+            Save Draft Edits (Do Not Approve Yet)
+          </button>
+          <button class="btn ghost" style="color:var(--err);border:1.5px solid #F8D7DA;margin-top:10px;" onclick="window.app.eraseActiveRecord()">
+            <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+            Erase Patient Record (DPDP Act Compliance)
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. ALL PATIENT RECORDS SCREEN -->
+    <section class="scr" id="records">
+      <div class="top">
+        <button class="back" aria-label="Back" onclick="window.app.goBack()">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <b>Organization Patient Records</b>
+        <button class="btn btn-excel" style="width:auto;padding:6px 12px;font-size:12px;" onclick="window.app.downloadActiveOrgExcel()">
+          Download Excel
+        </button>
+      </div>
+
+      <div class="body">
+        <!-- Organization / Committee Switcher Bar -->
+        <div class="clinical-card" style="padding:12px 14px;margin:10px 0 12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;gap:8px;">
+            <label for="records-org-filter" style="font-size:11.5px;font-weight:700;color:var(--mute);text-transform:uppercase;letter-spacing:0.5px;margin:0;">
+              Active Club / Organization:
+            </label>
+            <span id="records-org-count" style="font-size:12px;font-weight:700;color:var(--teal);"></span>
+          </div>
+          <select id="records-org-filter" style="width:100%;margin:0;font-weight:600;" onchange="window.app.onRecordsOrgChange()">
+            <!-- Populated via JS -->
+          </select>
+        </div>
+
+        <div style="margin:10px 0 8px;">
+          <input id="records-search" type="search" placeholder="Search patient name, ID, or vitals…" oninput="window.app.filterRecords()">
+        </div>
+
+        <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:10px;">
+          <button class="review-tab-btn active" id="rf-all" onclick="window.app.setRecordsFilter('all')">All Records</button>
+          <button class="review-tab-btn" id="rf-warn" onclick="window.app.setRecordsFilter('needs_review')">To check</button>
+          <button class="review-tab-btn" id="rf-ok" onclick="window.app.setRecordsFilter('reviewed')">Approved</button>
+          <button class="review-tab-btn" id="rf-highrisk" style="color:#DC2626;font-weight:700;" onclick="window.app.setRecordsFilter('high_risk')">🚨 High Risk / Flagged</button>
+        </div>
+
+        <div id="records-full-list" style="margin-top:4px;">
+          <!-- Rendered via JS -->
+        </div>
+      </div>
+
+      <!-- Bottom Nav -->
+      <div class="nav">
+        <button id="nav-btn-home-2" onclick="window.app.go('home')">
+          <svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9H4z"/></svg>
+          Home
+        </button>
+        <button class="on" id="nav-btn-records-2" onclick="window.app.go('records')">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          Records
+        </button>
+        <button class="go" aria-label="Scan a record" onclick="window.app.startScan()">
+          <svg viewBox="0 0 24 24" style="width:28px;height:28px;"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M4 12h16"/></svg>
+        </button>
+        <button id="nav-btn-analytics-2" onclick="window.app.go('analytics')">
+          <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          Analytics
+        </button>
+        <button id="nav-btn-settings-2" onclick="window.app.go('settings')">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Profile
+        </button>
+      </div>
+    </section>
+    <!-- 9. EXCEL EXPORT SCREEN -->
+    <section class="scr" id="export">
+      <div class="top">
+        <button class="back" aria-label="Back" onclick="window.app.goBack()">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <b>Clinical MIS Spreadsheet</b>
+        <button class="btn" style="width:auto;padding:6px 12px;font-size:12px;background:#107C41;border-radius:10px;" onclick="window.app.executeExport()">
+          <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+          Export .xlsx
+        </button>
+      </div>
+
+      <div class="body">
+        <!-- Executive MIS Cockpit Controls -->
+        <div class="clinical-card" style="padding:12px 14px;margin:12px 0 10px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:12px;font-weight:700;color:var(--ink);">Health Camp Dataset:</span>
+              <span class="tag" style="background:var(--ok);color:var(--ok-text);font-size:10.5px;">All Parameters</span>
+            </div>
+            <label for="export-only-reviewed" style="margin:0;font-size:12px;display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--mute);font-weight:600;">
+              <input type="checkbox" id="export-only-reviewed" style="width:15px;height:15px;accent-color:#107C41;" onchange="window.app.onExportFilterChanged()">
+              Approved only
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;">
+            <div>
+              <label for="export-form-type-select" style="font-size:11px;font-weight:700;color:var(--mute);display:block;margin-bottom:3px;">Clinical Form Structure:</label>
+              <select id="export-form-type-select" onchange="window.app.onExportFilterChanged()" style="font-size:12px;padding:6px 10px;height:36px;border-radius:10px;border:1px solid #CBD5E1;width:100%;background:#fff;">
+                <option value="">Auto-Detect from Camp Dataset</option>
+                <option value="adult">Adult Health Form (ASF-D&amp;A-ACS-9.1 / AC-9.1)</option>
+                <option value="paediatric">Paediatric Screening Form (ASF-D&amp;A-PCS-9.3 / PCS-9.7)</option>
+              </select>
+            </div>
+            <div>
+              <label for="export-camp-select" style="font-size:11px;font-weight:700;color:var(--mute);display:block;margin-bottom:3px;">Select Health Camp:</label>
+              <select id="export-camp-select" onchange="window.app.onExportFilterChanged()" style="font-size:12px;padding:6px 10px;height:36px;border-radius:10px;border:1px solid #CBD5E1;width:100%;background:#fff;">
+                <option value="">All Health Camps (All Records)</option>
+              </select>
+            </div>
+          </div>
+          <!-- Fast Dedicated Export Actions -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px;">
+            <button class="btn" style="flex:1;min-width:130px;height:34px;padding:0 10px;font-size:11px;background:#D81B60;border-radius:10px;white-space:nowrap;" onclick="window.app.exportAdultExcel()">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+              Adult .xlsx
+            </button>
+            <button class="btn" style="flex:1;min-width:130px;height:34px;padding:0 10px;font-size:11px;background:#0288D1;border-radius:10px;white-space:nowrap;" onclick="window.app.exportPaediatricExcel()">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+              Paediatric .xlsx
+            </button>
+            <button class="btn" style="flex:1;min-width:130px;height:34px;padding:0 10px;font-size:11px;background:#107C41;border-radius:10px;white-space:nowrap;" onclick="window.app.executeExport()">
+              <svg viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+              Export Selected .xlsx
+            </button>
+          </div>
+          <div style="margin-top:6px;">
+            <input id="excel-search-input" placeholder="🔍 Search patient name, ID, vitals, or clinical findings in sheet…" oninput="window.app.filterExcelPreview()" style="font-size:12.5px;padding:8px 12px;margin:0;border-radius:10px;height:36px;background:#F8FAFC;border:1px solid #CBD5E1;">
+          </div>
+        </div>
+
+        <!-- Dynamic Download Confirmation Banner -->
+        <div id="excel-download-banner" style="display:none;background:#E8F5E9;border:1.5px solid #107C41;border-radius:14px;padding:10px 14px;margin:8px 0 10px;"></div>
+
+        <!-- Interactive In-App Excel Sheet Viewer -->
+        <div class="excel-window" id="excel-window-el">
+          <div class="excel-ribbon">
+            <div class="excel-ribbon-title">
+              <svg viewBox="0 0 24 24" style="width:18px;height:18px;fill:#fff;"><rect x="3" y="3" width="18" height="18" rx="3" fill="#0B552C"/><path d="M7 8h10M7 12h10M7 16h6" stroke="#fff" stroke-width="2"/></svg>
+              <span id="excel-ribbon-filename">clinic_records_all.xlsx</span>
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn ghost" id="excel-fs-btn" style="width:auto;padding:4px 10px;font-size:11px;background:rgba(255,255,255,0.2);color:#fff;border-radius:8px;" onclick="window.app.toggleExcelFullscreen()">
+                ⛶ Fullscreen
+              </button>
+              <button class="btn ghost" style="width:auto;padding:4px 10px;font-size:11px;background:rgba(255,255,255,0.25);color:#fff;border-radius:8px;" onclick="window.app.executeExport()">
+                ⬇ Save .xlsx
+              </button>
+            </div>
+          </div>
+
+          <div class="excel-grid-container" id="excel-grid-container">
+            <!-- Rendered by window.app.renderExcelPreview() -->
+          </div>
+
+          <div class="excel-sheet-tabs">
+            <button class="excel-sheet-tab active" id="extab-records" onclick="window.app.switchExcelSheetTab('records')">
+              📋 Clinical Records (<span id="excel-records-count">0</span>)
+            </button>
+            <button class="excel-sheet-tab" id="extab-attributes" onclick="window.app.switchExcelSheetTab('attributes')">
+              📑 Form Attributes &amp; Structure (<span id="excel-attributes-count">0</span>)
+            </button>
+            <button class="excel-sheet-tab" id="extab-camps" onclick="window.app.switchExcelSheetTab('camps')">
+              📊 Camp Summary (<span id="excel-camps-count">0</span>)
+            </button>
+          </div>
+        </div>
+
+        <div class="info-card" style="margin-top:10px;">
+          <b>Spreadsheet Security Safeguard:</b> Native Excel (.xlsx) formatting ensures all text cells and medical entries are treated strictly as string literals, preventing formula injection. Includes styled green headers, frozen panes, camp overview sheet, and auto-column widths for all 95 clinical parameters.
+        </div>
+
+        <div class="sec" style="margin-top:18px;">
+          <h3>Camps Individual Export</h3>
+        </div>
+        <div id="export-camps-list">
+          <!-- Populated from state -->
+        </div>
+      </div>
+
+      <!-- Bottom Nav -->
+      <div class="nav">
+        <button id="nav-btn-home-3" onclick="window.app.go('home')">
+          <svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9H4z"/></svg>
+          Home
+        </button>
+        <button id="nav-btn-records-3" onclick="window.app.go('records')">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          Records
+        </button>
+        <button class="go" aria-label="Scan a record" onclick="window.app.startScan()">
+          <svg viewBox="0 0 24 24" style="width:28px;height:28px;"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M4 12h16"/></svg>
+        </button>
+        <button id="nav-btn-analytics-3" onclick="window.app.go('analytics')">
+          <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          Analytics
+        </button>
+        <button id="nav-btn-settings-3" onclick="window.app.go('settings')">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Profile
+      </div>
+    </section>
+
+    <!-- 10. CAMP ANALYTICS & EPIDEMIOLOGY SCREEN -->
+    <section class="scr" id="analytics">
+      <div class="top">
+        <button class="back" aria-label="Back" onclick="window.app.goBack()">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <b>Camp Analytics & Epidemiology</b>
+      </div>
+
+      <div class="body">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin:14px 0 6px;">
+          <div>
+            <h2 style="font-size:20px;margin:0;color:var(--ink);">Clinical Telemetry</h2>
+            <small style="color:var(--mute);font-size:12px;">Aggregated physiological vitals &amp; prevalence indicators</small>
+          </div>
+          <!-- Camp Filter Dropdown -->
+          <select id="analytics-camp-select" onchange="window.app.onAnalyticsCampChanged()" style="max-width:180px;height:36px;font-size:12px;padding:0 8px;border-radius:10px;border:1.5px solid #CBD5E1;background:#fff;font-weight:600;">
+            <option value="">All Outreach Camps</option>
+          </select>
+        </div>
+
+        <!-- Blood Pressure Classification -->
+        <div class="clinical-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <b style="font-size:14px;color:var(--ink);">Blood Pressure Triage</b>
+            <span class="tag" id="analytics-patient-count" style="background:var(--primary-light);color:var(--primary);font-size:10.5px;">128 Patients</span>
+          </div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;color:var(--ink);">
+                <span>Normal (&lt;120/80)</span>
+                <b id="analytics-bp-normal-pct">62%</b>
+              </div>
+              <div style="height:6px;background:var(--mist);border-radius:4px;overflow:hidden;">
+                <div id="analytics-bp-normal-bar" style="width:62%;height:100%;background:#059669;border-radius:4px;transition:width 0.4s ease;"></div>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;color:var(--ink);">
+                <span>Pre-Hypertension (120-139/80-89)</span>
+                <b id="analytics-bp-prehtn-pct">24%</b>
+              </div>
+              <div style="height:6px;background:var(--mist);border-radius:4px;overflow:hidden;">
+                <div id="analytics-bp-prehtn-bar" style="width:24%;height:100%;background:#D97706;border-radius:4px;transition:width 0.4s ease;"></div>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;color:var(--ink);">
+                <span>Stage 1 & 2 HTN (≥140/90)</span>
+                <b id="analytics-bp-htn-pct" style="color:var(--err);">14%</b>
+              </div>
+              <div style="height:6px;background:var(--mist);border-radius:4px;overflow:hidden;">
+                <div id="analytics-bp-htn-bar" style="width:14%;height:100%;background:var(--err);border-radius:4px;transition:width 0.4s ease;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BMI Staging -->
+        <div class="clinical-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <b style="font-size:14px;color:var(--ink);">BMI Distribution</b>
+            <span class="tag" style="background:var(--primary-light);color:var(--primary);font-size:10.5px;">Calculated</span>
+          </div>
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;color:var(--ink);">
+                <span>Underweight (&lt;18.5)</span>
+                <b id="analytics-bmi-under-pct">14%</b>
+              </div>
+              <div style="height:6px;background:var(--mist);border-radius:4px;overflow:hidden;">
+                <div id="analytics-bmi-under-bar" style="width:14%;height:100%;background:#38BDF8;border-radius:4px;transition:width 0.4s ease;"></div>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;color:var(--ink);">
+                <span>Normal Weight (18.5 - 24.9)</span>
+                <b id="analytics-bmi-normal-pct">58%</b>
+              </div>
+              <div style="height:6px;background:var(--mist);border-radius:4px;overflow:hidden;">
+                <div id="analytics-bmi-normal-bar" style="width:58%;height:100%;background:#059669;border-radius:4px;transition:width 0.4s ease;"></div>
+              </div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px;color:var(--ink);">
+                <span>Overweight & Obese (≥25)</span>
+                <b id="analytics-bmi-over-pct">28%</b>
+              </div>
+              <div style="height:6px;background:var(--mist);border-radius:4px;overflow:hidden;">
+                <div id="analytics-bmi-over-bar" style="width:28%;height:100%;background:#D81B60;border-radius:4px;transition:width 0.4s ease;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Systemic Findings -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+          <div class="clinical-card" style="padding:12px;margin:0;">
+            <small style="color:var(--mute);text-transform:uppercase;font-size:10px;font-weight:700;">Dental Health</small>
+            <b id="analytics-dental-pct" style="font:800 20px 'Bricolage Grotesque';display:block;margin-top:4px;color:var(--primary);">34%</b>
+            <span style="font-size:11px;color:var(--mute);">Caries / Cavities Advised</span>
+          </div>
+          <div class="clinical-card" style="padding:12px;margin:0;">
+            <small style="color:var(--mute);text-transform:uppercase;font-size:10px;font-weight:700;">Vision Deficit</small>
+            <b id="analytics-vision-pct" style="font:800 20px 'Bricolage Grotesque';display:block;margin-top:4px;color:var(--primary);">18%</b>
+            <span style="font-size:11px;color:var(--mute);">Refractive Error &lt;6/6</span>
+          </div>
+        </div>
+
+        <div class="samd-banner">
+          <b>Epidemiological Notice:</b> Automated camp summaries are derived from physician-verified intake forms under human clinical oversight.
+        </div>
+      </div>
+
+      <!-- Bottom Nav -->
+      <div class="nav">
+        <button id="nav-btn-home-5" onclick="window.app.go('home')">
+          <svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9H4z"/></svg>
+          Home
+        </button>
+        <button id="nav-btn-records-5" onclick="window.app.go('records')">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          Records
+        </button>
+        <button class="go" aria-label="Scan a record" onclick="window.app.startScan()">
+          <svg viewBox="0 0 24 24" style="width:28px;height:28px;"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M4 12h16"/></svg>
+        </button>
+        <button class="on" id="nav-btn-analytics-5" onclick="window.app.go('analytics')">
+          <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          Analytics
+        </button>
+        <button id="nav-btn-settings-5" onclick="window.app.go('settings')">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Profile
+        </button>
+      </div>
+    </section>
+
+    <!-- 11. DOCTOR PROFILE & SYSTEM SECURITY -->
+    <section class="scr" id="settings">
+      <div class="top">
+        <button class="back" aria-label="Back" onclick="window.app.goBack()">
+          <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+        <b>Physician Profile & System</b>
+      </div>
+
+      <div class="body">
+        <!-- Doctor Profile Card -->
+        <div class="clinical-card" style="padding:18px;margin:14px 0 12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:14px;">
+            <div style="display:flex;align-items:center;gap:14px;">
+              <div class="av" id="settings-doctor-av" style="width:54px;height:54px;font-size:20px;background:linear-gradient(135deg, #D81B60 0%, #AD1457 100%);">D</div>
+              <div>
+                <b id="settings-doctor-name" style="font-size:17px;color:var(--ink);">Attending Physician</b>
+                <p id="settings-doctor-email" style="color:var(--mute);font-size:12.5px;margin-top:2px;">physician@hospital.org</p>
+                <div style="display:flex;align-items:center;gap:6px;margin-top:4px;">
+                  <span class="tag" id="settings-doctor-spec" style="background:#F0FDF4;color:#16A34A;font-size:11px;font-weight:700;">General Physician</span>
+                  <span class="tag" id="settings-community-name" style="background:var(--primary-light);color:var(--primary);font-size:10.5px;">Primary Healthcare Outreach</span>
+                </div>
+              </div>
+            </div>
+            <button class="btn ghost" style="width:auto;padding:6px 12px;font-size:12px;border:1px solid #CBD5E1;" onclick="window.app.toggleEditDoctorProfile()">
+              ✏️ Edit
+            </button>
+          </div>
+
+          <!-- Doctor Stats Counter Pill -->
+          <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;text-align:center;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:10px 6px;margin-top:14px;">
+            <div>
+              <small style="color:#64748B;font-size:11px;display:block;">Documents Scanned</small>
+              <b id="settings-doctor-scans" style="font-size:15px;color:#0F172A;">0</b>
+            </div>
+            <div>
+              <small style="color:#64748B;font-size:11px;display:block;">Verified &amp; Approved</small>
+              <b id="settings-doctor-reviews" style="font-size:15px;color:#16A34A;">0</b>
+            </div>
+            <div>
+              <small style="color:#64748B;font-size:11px;display:block;">Camps Served</small>
+              <b id="settings-doctor-camps" style="font-size:15px;color:#D81B60;">0</b>
+            </div>
+          </div>
+
+          <!-- Doctor Profile Edit Drawer (Collapsible) -->
+          <div id="settings-profile-edit-box" style="display:none;margin-top:14px;border-top:1px solid #E2E8F0;padding-top:12px;">
+            <b style="font-size:13px;color:#0F172A;display:block;margin-bottom:8px;">Update Physician Credentials</b>
+            <div style="display:flex;flex-direction:column;gap:8px;">
+              <div>
+                <label style="font-size:11px;font-weight:700;color:#64748B;">Full Physician Name:</label>
+                <input id="settings-input-name" style="font-size:13px;padding:8px 10px;height:36px;border-radius:8px;border:1px solid #CBD5E1;width:100%;margin-top:3px;" placeholder="Dr. First Last">
+              </div>
+              <div>
+                <label style="font-size:11px;font-weight:700;color:#64748B;">Specialization / Role:</label>
+                <input id="settings-input-spec" style="font-size:13px;padding:8px 10px;height:36px;border-radius:8px;border:1px solid #CBD5E1;width:100%;margin-top:3px;" placeholder="e.g. Lead Camp Physician, Paediatrician">
+              </div>
+              <div style="display:flex;gap:8px;margin-top:6px;">
+                <button class="btn" style="flex:1;height:36px;font-size:12.5px;padding:0;" onclick="window.app.saveDoctorProfile()">
+                  💾 Save Profile Changes
+                </button>
+                <button class="btn ghost" style="width:auto;height:36px;font-size:12px;padding:0 14px;border:1px solid #CBD5E1;" onclick="window.app.toggleEditDoctorProfile()">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Community Workspace Card -->
+        <div class="clinical-card-alt" style="border:1.5px solid var(--line);margin-bottom:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <small style="color:var(--primary);text-transform:uppercase;font-size:10.5px;font-weight:700;">Clinical Workspace &amp; Team</small>
+            <span class="tag" style="background:var(--ok);color:var(--ok-text);font-size:10.5px;">Active Workspace</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+            <div>
+              <b id="settings-hub-title" style="font-size:15px;color:var(--ink);">Mobile Health Camp Unit</b>
+              <small id="settings-hub-code-sub" style="display:block;color:var(--mute);font-size:11.5px;margin-top:2px;">Camp Code: CAMP-2026</small>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn" style="width:auto;padding:6px 12px;font-size:12px;background:#D81B60;" onclick="window.app.openCommunityModal()">
+                🏢 Community Workspace
+              </button>
+              <button class="btn" style="width:auto;padding:6px 14px;font-size:12px;background:#0284C7;" onclick="window.app.openTeamManagementModal()">
+                👥 Team &amp; Doctors
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="font-size:16px;margin:16px 0 8px;color:var(--ink);">System Diagnostics & Cloud Sync</h3>
+
+        <div class="clinical-card" style="padding:14px;margin-bottom:10px;">
+          <small style="color:var(--mute);text-transform:uppercase;font-size:10.5px;font-weight:700;">Vision AI Engine</small>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+            <b id="settings-ai-provider" style="color:var(--ink);">Groq Vision (qwen/qwen3.8-27b)</b>
+            <span class="tag" id="settings-ai-status">Active API</span>
+          </div>
+        </div>
+
+        <div class="clinical-card" style="padding:14px;margin-bottom:10px;">
+          <small style="color:var(--mute);text-transform:uppercase;font-size:10.5px;font-weight:700;">Cloud Database (PostgreSQL)</small>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+            <b style="color:var(--ink);">Supabase Cloud DB</b>
+            <span class="tag" id="settings-supabase-status">Connected</span>
+          </div>
+        </div>
+
+        <div class="clinical-card" style="padding:14px;margin-bottom:12px;">
+          <small style="color:var(--mute);text-transform:uppercase;font-size:10.5px;font-weight:700;">Local Offline Cache</small>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+            <b style="color:var(--ink);">SQLite Local Mirror</b>
+            <span class="tag" id="settings-sqlite-status">Synced</span>
+          </div>
+        </div>
+
+        <!-- Live Quality & Blur Diagnostics (?debug=1) -->
+        <div id="settings-debug-quality-card" class="clinical-card" style="display:none;padding:14px;margin-bottom:12px;border-left:4px solid #F59E0B;">
+          <small style="color:#D97706;text-transform:uppercase;font-size:10.5px;font-weight:700;">Diagnostic Blur Scores (?debug=1)</small>
+          <div style="margin-top:6px;font-size:12.5px;color:var(--ink);line-height:1.6;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;">
+            <div>Client Sharpness: <b id="settings-debug-client-sharpness">--</b> (Threshold: 280)</div>
+            <div>Server Sharpness: <b id="settings-debug-server-sharpness">--</b> (Server Threshold: 280)</div>
+          </div>
+        </div>
+
+        <button class="btn ghost" style="margin-bottom:12px;border-color:var(--line);" onclick="window.app.syncSupabaseCloud()">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M19 11a4 4 0 00-7.8-1.5A5 5 0 003 14a5 5 0 005 5h11a4 4 0 000-8zM12 12v5m-3-3l3-3 3 3"/></svg>
+          Sync Offline DB to Supabase Cloud
+        </button>
+
+        <div class="sec" style="margin-top:16px;">
+          <h3 style="color:var(--ink);">Usage & Plan Quota</h3>
+        </div>
+
+        <!-- Plan & Quota Card -->
+        <div class="clinical-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <b id="billing-plan-name" style="font-size:15px;color:var(--ink);">Standard Monthly Plan</b>
+            <span class="tag ok" id="billing-plan-status">Active</span>
+          </div>
+          <p id="billing-renews-on" style="color:var(--mute);font-size:12px;margin:4px 0 12px;">Renews on: Loading...</p>
+
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;text-align:center;background:var(--mist);border:1px solid var(--line);border-radius:12px;padding:12px 6px;margin-bottom:12px;">
+            <div>
+              <small style="display:block;color:var(--mute);font-size:11px;">Included</small>
+              <b id="billing-papers-included" style="font-size:16px;color:var(--ink);">-</b>
+            </div>
+            <div>
+              <small style="display:block;color:var(--mute);font-size:11px;">Used</small>
+              <b id="billing-papers-used" style="font-size:16px;color:#D81B60;">-</b>
+            </div>
+            <div>
+              <small style="display:block;color:var(--mute);font-size:11px;">Remaining</small>
+              <b id="billing-papers-remaining" style="font-size:16px;color:#059669;">-</b>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div style="margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mute);margin-bottom:4px;">
+              <span>Usage Telemetry</span>
+              <span id="billing-usage-pct">0%</span>
+            </div>
+            <div style="width:100%;height:8px;background:var(--mist);border-radius:4px;overflow:hidden;">
+              <div id="billing-progress-bar" style="width:0%;height:100%;background:linear-gradient(90deg, #0E7C6B, #D81B60);transition:width 0.4s ease;"></div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;font-size:11.5px;color:var(--mute);margin-top:6px;">
+            <span id="billing-rollover-info">Rollover: 0</span>
+            <span id="billing-daily-cap-info">Daily Cap: 2,000 / day</span>
+          </div>
+
+          <button class="btn" style="margin-top:14px;padding:10px 14px;font-size:13.5px;" onclick="window.app.openBuyAddonModal()">
+            <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 5v14M5 12h14"/></svg>
+            Buy Add-on Papers (Razorpay)
+          </button>
+        </div>
+
+        <div class="sec" style="margin-top:16px;">
+          <h3 style="color:var(--ink);">GST Invoices & Receipts</h3>
+        </div>
+
+        <!-- Invoices List Card -->
+        <div class="clinical-card" style="padding:14px;margin-bottom:12px;">
+          <div id="billing-invoices-list" style="display:flex;flex-direction:column;gap:8px;">
+            <p style="color:var(--mute);font-size:12.5px;text-align:center;padding:12px 0;">Loading GST invoices...</p>
+          </div>
+        </div>
+
+        <!-- AI Token & Cost Breakdown Ledger Card -->
+        <div class="sec" style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;">
+          <h3 style="color:var(--ink);margin:0;">AI Token &amp; Cost Ledger</h3>
+          <span class="tag ok" style="font-size:10.5px;">Live Metering</span>
+        </div>
+        <div class="clinical-card" style="padding:14px;margin-bottom:12px;">
+          <p style="font-size:12px;color:var(--mute);margin-bottom:10px;">
+            Per-document audit trail of vision extraction tokens, latency, and estimated billing.
+          </p>
+          <div id="billing-ledger-list" style="display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;">
+            <p style="color:var(--mute);font-size:12px;text-align:center;padding:12px 0;">Loading token telemetry...</p>
+          </div>
+        </div>
+
+        <div class="sec" style="margin-top:16px;">
+          <h3>Flow A: Start & Account Screens</h3>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;">
+          <button class="btn ghost" style="font-size:12px;padding:10px 8px;border-color:var(--line);" onclick="window.app.go('landing')">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
+            1. Welcome Screen
+          </button>
+          <button class="btn ghost" style="font-size:12px;padding:10px 8px;border-color:var(--line);" onclick="window.app.go('login')">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+            2. Login (Email)
+          </button>
+          <button class="btn ghost" style="font-size:12px;padding:10px 8px;border-color:var(--line);" onclick="window.app.openCommunityModal()">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            3. Community Modal
+          </button>
+          <button class="btn ghost" style="font-size:12px;padding:10px 8px;border-color:var(--line);" onclick="window.app.triggerSessionTimeout()">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            4. Lock Station (PIN)
+          </button>
+          <button class="btn ghost" style="font-size:12px;padding:10px 8px;grid-column:span 2;border-color:var(--line);" onclick="window.app.openCameraPermissionModal(true)">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            5. Camera Permission Guidance
+          </button>
+        </div>
+
+        <div class="sec" style="margin-top:16px;">
+          <h3>Account & Data Management</h3>
+        </div>
+
+        <button class="btn ghost" style="color:var(--ink);border:1.5px solid var(--line);margin-bottom:10px;" onclick="window.app.clearClinicCache()">
+          <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          Clear Local Cache & Refresh
+        </button>
+
+        <button class="btn ghost" style="color:var(--err);border:1.5px solid #F8D7DA;margin-bottom:20px;" onclick="window.app.logout()">
+          <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          Sign Out of Clinic Account
+        </button>
+      </div>
+
+      <!-- Bottom Nav -->
+      <div class="nav">
+        <button id="nav-btn-home-4" onclick="window.app.go('home')">
+          <svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9H4z"/></svg>
+          Home
+        </button>
+        <button id="nav-btn-records-4" onclick="window.app.go('records')">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
+          Records
+        </button>
+        <button class="go" aria-label="Scan a record" onclick="window.app.startScan()">
+          <svg viewBox="0 0 24 24" style="width:28px;height:28px;"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M4 12h16"/></svg>
+        </button>
+        <button id="nav-btn-analytics-4" onclick="window.app.go('analytics')">
+          <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+          Analytics
+        </button>
+        <button class="on" id="nav-btn-settings-4" onclick="window.app.go('settings')">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Profile
+        </button>
+      </div>
+    </section>
+
+    <!-- UNSUPPORTED FORM PICKER MODAL -->
+    <div class="ov" id="unsupported-form-modal">
+      <div style="max-width:440px;">
+        <div class="modal-handle-bar"></div>
+        <div class="modal-header-row">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:20px;">📋</span>
+            <h3 style="margin:0;font-size:16px;">Unrecognized Form Template</h3>
+          </div>
+          <button type="button" class="modal-close-icon-btn" onclick="window.app.dismissUnsupportedModal(true)">
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <p style="color:var(--mute);font-size:12.5px;margin:8px 0 14px;line-height:1.4;">
+          The scanned document footer code could not be automatically identified. Please select the appropriate form template below, or retake the scan with clear lighting.
+        </p>
+
+        <div style="margin-bottom:16px;">
+          <label for="unsupported-form-select" style="font-weight:700;font-size:12.5px;color:var(--ink);display:block;margin-bottom:6px;">Select Form Template</label>
+          <select id="unsupported-form-select" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--border,#cbd5e1);font-size:13.5px;background:var(--input-bg,#fff);color:var(--ink,#1e293b);">
+            <option value="tpl_adult_history_v9_1,tpl_adult_examination_v9_1">Adult Comprehensive Health Screening (v9.1)</option>
+            <option value="tpl_paediatric_history_v9_3,tpl_paediatric_examination_v9_7">Paediatric School Health Screening (v9.3 / v9.7)</option>
+          </select>
+        </div>
+
+        <div style="display:flex;gap:10px;justify-content:flex-end;">
+          <button type="button" class="btn ghost" id="unsupported-retake-btn" style="padding:8px 16px;font-size:13px;" onclick="window.app.dismissUnsupportedModal(true)">Retake Scan</button>
+          <button type="button" class="btn" id="unsupported-confirm-btn" style="padding:8px 16px;font-size:13px;background:var(--teal,#0E7C6B);color:#fff;" onclick="window.app.dismissUnsupportedModal(false)">Use Selected Template</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- BUY ADD-ON MODAL OVERLAY -->
+    <div class="ov" id="buy-addon-modal">
+      <div style="max-width:380px;">
+        <div class="modal-handle-bar"></div>
+        <div class="modal-header-row">
+          <h3>Buy Add-on Papers</h3>
+          <button type="button" class="modal-close-icon-btn" onclick="window.app.closeBuyAddonModal()">
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+        <p style="color:var(--mute);font-size:12.5px;margin-bottom:12px;">
+          Select paper pack. Add-ons never expire and roll over with your account.
+        </p>
+
+        <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;">
+          <label style="border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="radio" name="addon-pack" value="1000" checked>
+            <div style="flex:1;">
+              <b style="display:block;font-size:14px;color:var(--ink);">1,000 Papers Pack</b>
+              <span style="font-size:12px;color:var(--mute);">₹3,000 + 18% GST (₹3,540 total)</span>
+            </div>
+          </label>
+          <label style="border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="radio" name="addon-pack" value="2500">
+            <div style="flex:1;">
+              <b style="display:block;font-size:14px;color:var(--ink);">2,500 Papers Pack</b>
+              <span style="font-size:12px;color:var(--mute);">₹6,250 + 18% GST (₹7,375 total)</span>
+            </div>
+          </label>
+          <label style="border:1.5px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;">
+            <input type="radio" name="addon-pack" value="5000">
+            <div style="flex:1;">
+              <b style="display:block;font-size:14px;color:var(--ink);">5,000 Papers Pack</b>
+              <span style="font-size:12px;color:var(--mute);">₹10,000 + 18% GST (₹11,800 total)</span>
+            </div>
+          </label>
+        </div>
+
+        <button class="btn" id="pay-razorpay-btn" onclick="window.app.buyAddonPack()">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+          Pay with Razorpay Standard Checkout
+        </button>
+        <button class="btn ghost" style="margin-top:8px;" onclick="window.app.closeBuyAddonModal()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- NEW CAMP MODAL OVERLAY -->
+    <div class="ov" id="ov">
+      <div>
+        <h2 style="font-size:22px;">Create Organization / Club / Committee</h2>
+        <p style="color:var(--mute);font-size:13px;margin-bottom:8px;">Every scanned record and Excel workbook is maintained under its respective organization.</p>
+        
+        <label for="cn">Organization / Club / Committee Name</label>
+        <input id="cn" placeholder="Rotary Club / YRC Committee / College Name">
+        
+        <label for="ci">Target Quota (Expected Records)</label>
+        <input id="ci" type="number" value="120" min="1">
+
+        <label for="cd">Date / Camp Session</label>
+        <input id="cd" placeholder="Today" value="Today">
+        
+        <p class="err" id="cerr"></p>
+        
+        <button class="btn" onclick="window.app.saveNewCamp()">Create Organization</button>
+        <button class="btn ghost" style="margin-top:10px;" onclick="window.app.closeNewCampModal()">Cancel</button>
+      </div>
+    </div>
+
+    <!-- PAGE 4: AUTHENTICATED COMMUNITY WORKSPACE MODAL -->
+    <div class="ov" id="community-modal">
+      <div style="max-height:90vh;display:flex;flex-direction:column;width:100%;max-width:440px;">
+        <div class="modal-handle-bar"></div>
+        <div class="modal-header-row" style="padding-bottom:12px;border-bottom:1px solid #F1F5F9;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:#FDF2F8;display:flex;align-items:center;justify-content:center;color:#D81B60;">
+              <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#D81B60;fill:none;stroke-width:2;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <div>
+              <h3 style="margin:0;font-size:16px;color:var(--ink);">Community Workspace</h3>
+              <small style="color:var(--mute);font-size:11.5px;">Manage memberships, join teams &amp; workspaces</small>
+            </div>
+          </div>
+          <button type="button" class="modal-close-icon-btn" onclick="window.app.closeCommunityModal()" aria-label="Close">
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+
+        <div style="overflow-y:auto;padding:16px 18px;flex:1;">
+          <!-- Auth Gate View (Shown if unauthenticated) -->
+          <div id="comm-auth-gate" style="display:none;text-align:center;padding:24px 12px;">
+            <div style="width:52px;height:52px;border-radius:50%;background:#FEE2E2;color:#DC2626;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+              <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:#DC2626;fill:none;stroke-width:2;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+            </div>
+            <h4 style="font-size:16px;margin:0 0 6px;color:var(--ink);">Authentication Required</h4>
+            <p style="color:var(--mute);font-size:12.5px;line-height:1.45;margin:0 0 16px;">
+              You must be signed in with a verified account to access clinical community workspaces.
+            </p>
+            <button class="btn btn-primary" onclick="window.app.closeCommunityModal(); window.app.go('login');" style="width:auto;padding:8px 24px;margin:0 auto;">
+              Sign In to Continue
+            </button>
+          </div>
+
+          <!-- Email Verification Gate View (Shown if unverified) -->
+          <div id="comm-verify-gate" style="display:none;text-align:center;padding:24px 12px;">
+            <div style="width:52px;height:52px;border-radius:50%;background:#FEF3C7;color:#D97706;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;">
+              <svg viewBox="0 0 24 24" style="width:24px;height:24px;stroke:#D97706;fill:none;stroke-width:2;"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+            </div>
+            <h4 style="font-size:16px;margin:0 0 6px;color:var(--ink);">Email Verification Required</h4>
+            <p style="color:var(--mute);font-size:12.5px;line-height:1.45;margin:0 0 16px;">
+              Please verify your email address to perform community operations and join outreach teams.
+            </p>
+          </div>
+
+          <!-- Authenticated Community Workspace Body -->
+          <div id="comm-workspace-body">
+            <!-- Active Community Card -->
+            <div style="background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:14px;padding:12px 14px;margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;">
+                <small style="color:var(--mute);text-transform:uppercase;font-size:10.5px;font-weight:700;">Current Active Workspace</small>
+                <span class="tag" style="background:#DCFCE7;color:#15803D;font-size:10.5px;font-weight:700;">Active</span>
+              </div>
+              <div style="margin-top:6px;">
+                <b id="comm-active-name" style="font-size:15px;color:var(--ink);display:block;">Rotary Community Health Outreach</b>
+                <div style="display:flex;gap:14px;margin-top:4px;font-size:12px;color:var(--mute);">
+                  <span>Code: <code id="comm-active-code" style="font-weight:700;color:var(--primary);">CAMP-2026</code></span>
+                  <span>Role: <b id="comm-active-role" style="color:var(--ink);">Doctor</b></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Joined Workspaces List & Switcher -->
+            <div id="comm-memberships-section" style="margin-bottom:16px;">
+              <small style="color:var(--mute);text-transform:uppercase;font-size:10.5px;font-weight:700;display:block;margin-bottom:8px;">Your Community Memberships</small>
+              <div id="comm-memberships-list" style="display:flex;flex-direction:column;gap:8px;">
+                <!-- Populated dynamically -->
+              </div>
+            </div>
+
+            <!-- Segmented Action Switcher -->
+            <div class="signin-tabs" style="margin-bottom:14px;">
+              <button type="button" class="signin-tab-btn active" id="comm-tab-btn-join" onclick="window.app.switchCommunityTab('join')">
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3"/></svg>
+                Join with Invite Code
+              </button>
+              <button type="button" class="signin-tab-btn" id="comm-tab-btn-create" onclick="window.app.switchCommunityTab('create')">
+                <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M12 5v14M5 12h14"/></svg>
+                Create Community
+              </button>
+            </div>
+
+            <!-- Tab 1: Join with Invite Code -->
+            <div id="comm-panel-join">
+              <label class="signin-label" for="comm-join-code">Enter Invitation Code</label>
+              <div class="signin-otp-split">
+                <input id="comm-join-code" placeholder="e.g. INV-DOC-1234 or CAMP-2026" style="text-transform:uppercase;font-weight:700;letter-spacing:0.05em;" />
+                <button type="button" class="signin-otp-btn" id="comm-verify-btn" onclick="window.app.verifyCommunityCode()">
+                  Verify Code
+                </button>
+              </div>
+
+              <p class="err" id="comm-join-error" style="margin-top:6px;font-size:12.5px;"></p>
+
+              <!-- Real-Time Verified Preview Card with Accept / Decline -->
+              <div class="comm-preview-card" id="comm-preview-box">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                  <div>
+                    <small style="text-transform:uppercase;font-size:10px;font-weight:700;color:#15803D;">Invitation Verified</small>
+                    <b id="comm-preview-name" style="font-size:15px;margin-top:2px;">Community Name</b>
+                  </div>
+                  <span class="tag" id="comm-preview-badge" style="background:#DCFCE7;color:#15803D;font-size:10.5px;">Valid</span>
+                </div>
+                <div id="comm-preview-details" style="font-size:12px;color:#166534;margin:6px 0 10px;line-height:1.4;">
+                  Role: <b id="comm-preview-role">Doctor</b> · Organizer: <span id="comm-preview-organizer">Organizer</span>
+                </div>
+                <div id="comm-preview-approval-note" style="font-size:11.5px;color:#15803D;background:rgba(255,255,255,0.7);padding:6px 10px;border-radius:8px;margin-bottom:10px;">
+                  Click Accept to activate your workspace membership.
+                </div>
+                <div style="display:flex;gap:8px;">
+                  <button type="button" class="btn" id="comm-accept-invite-btn" style="flex:2;padding:8px;font-size:13px;background:#15803D;" onclick="window.app.acceptCommunityInvite()">
+                    Accept Invitation
+                  </button>
+                  <button type="button" class="btn ghost" id="comm-decline-invite-btn" style="flex:1;padding:8px;font-size:13px;border-color:#86EFAC;color:#166534;background:#fff;" onclick="window.app.declineCommunityInvite()">
+                    Decline
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Tab 2: Create Community (Available only to verified Doctors) -->
+            <div id="comm-panel-create" style="display:none;">
+              <!-- Non-Doctor Restriction Warning -->
+              <div id="comm-create-restricted" style="display:none;background:#FEF2F2;border:1px solid #FECACA;border-radius:12px;padding:12px 14px;color:#991B1B;font-size:12.5px;line-height:1.4;">
+                <b>Doctor Access Only:</b> Community creation is restricted to verified Doctors. Users may join existing communities using an invitation code.
+              </div>
+
+              <!-- Doctor Creation Form -->
+              <div id="comm-create-form-wrap">
+                <div class="signin-form-group">
+                  <label class="signin-label" for="comm-create-name">Community / Clinic Name *</label>
+                  <div class="signin-input-wrap">
+                    <input id="comm-create-name" type="text" placeholder="e.g. Apollo Rural Health Camp" required />
+                  </div>
+                </div>
+
+                <div class="signin-form-group">
+                  <label class="signin-label" for="comm-create-location">Location / Region (Optional)</label>
+                  <div class="signin-input-wrap">
+                    <input id="comm-create-location" type="text" placeholder="e.g. Bangalore Rural, Karnataka" />
+                  </div>
+                </div>
+
+                <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:10px 12px;margin:10px 0;font-size:12px;color:#166534;">
+                  <b>Administrator Profile:</b> You will become Community Admin. Creator details will automatically use your verified account (<span id="comm-create-doc-info">Dr. Physician</span>).
+                </div>
+
+                <p class="err" id="comm-create-error" style="margin-top:6px;font-size:12.5px;"></p>
+
+                <button type="button" class="signin-submit-btn" id="comm-create-submit-btn" style="margin-top:10px;" onclick="window.app.createCommunity()">
+                  Create Community Workspace
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE 5: SESSION EXPIRED MODAL -->
+    <div class="ov" id="session-expired-modal">
+      <div style="text-align:center;">
+        <div class="modal-handle-bar"></div>
+        <div class="session-shield-badge">
+          <svg viewBox="0 0 24 24" style="width:30px;height:30px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        </div>
+
+        <h3 style="font-size:19px;margin:0 0 6px;color:var(--ink);">Station Session Timed Out</h3>
+        <p style="color:var(--mute);font-size:12.5px;margin:0 0 16px;line-height:1.45;">
+          Patient health intake records are protected under the DPDP Act 2023. Enter your 4-digit PIN to immediately resume your camp station.
+        </p>
+
+        <!-- Active Physician Pill -->
+        <div style="display:inline-flex;align-items:center;gap:8px;background:#F1F5F9;padding:6px 14px;border-radius:99px;margin-bottom:14px;">
+          <div class="av" style="width:24px;height:24px;font-size:11px;background:#D81B60;">D</div>
+          <b id="session-doctor-label" style="font-size:13px;color:var(--ink);">Attending Physician</b>
+        </div>
+
+        <!-- PIN Entry Row -->
+        <div class="pin-display-row">
+          <input type="password" class="pin-digit-box" id="spin-1" maxlength="1" inputmode="numeric" />
+          <input type="password" class="pin-digit-box" id="spin-2" maxlength="1" inputmode="numeric" />
+          <input type="password" class="pin-digit-box" id="spin-3" maxlength="1" inputmode="numeric" />
+          <input type="password" class="pin-digit-box" id="spin-4" maxlength="1" inputmode="numeric" />
+        </div>
+
+        <p class="err" id="session-expired-error" style="margin-bottom:10px;"></p>
+
+        <button class="btn" id="btn-session-unlock" onclick="window.app.unlockSession()">
+          Unlock Station &amp; Resume
+        </button>
+
+        <button class="btn ghost" style="margin-top:10px;border-color:transparent;color:var(--mute);" onclick="window.app.logout()">
+          Sign Out of Account
+        </button>
+      </div>
+    </div>
+
+    <!-- PAGE 6: CAMERA PERMISSION GUIDANCE MODAL -->
+    <div class="ov" id="camera-permission-modal">
+      <div style="text-align:center;">
+        <div class="modal-handle-bar"></div>
+        <div class="camera-perm-icon-wrap">
+          <div class="optic-ring"></div>
+          <svg viewBox="0 0 24 24" style="width:34px;height:34px;"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+        </div>
+
+        <h3 style="font-size:19px;margin:0 0 6px;color:var(--ink);">Camera Access Required</h3>
+        <p style="color:var(--mute);font-size:12.5px;margin:0 0 14px;line-height:1.45;">
+          Ink 2 Insight needs camera access to automatically frame, freeze, and scan 2-page physical paper screening forms.
+        </p>
+
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#F0FDF4;color:#166534;font-size:11px;font-weight:600;padding:5px 12px;border-radius:99px;margin-bottom:16px;">
+          <span>🔒 DPDP Act 2023 · Frames are processed in memory only</span>
+        </div>
+
+        <!-- Troubleshooting Box (Visible if blocked) -->
+        <div class="perm-guide-box" id="camera-denied-guide" style="display:none;">
+          <h4>Browser Camera Blocked? How to Enable:</h4>
+          <ol>
+            <li>Tap the <b>Lock / Settings icon</b> in the top address bar.</li>
+            <li>Look for <b>Camera</b> and switch to <b>Allow</b>.</li>
+            <li>Reload the page or tap <b>Try Again</b> below.</li>
+          </ol>
+        </div>
+
+        <button class="btn" id="btn-grant-camera" onclick="window.app.requestCameraPermission()">
+          <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          Grant Camera Permission
+        </button>
+
+        <button class="btn ghost" style="margin-top:10px;" onclick="window.app.fallbackToUploadPhoto()">
+          <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+          Upload Form Photo Instead
+        </button>
+
+        <button class="btn ghost" style="margin-top:8px;border-color:transparent;color:var(--mute);font-size:12px;" onclick="window.app.closeCameraPermissionModal()">
+          Cancel
+        </button>
+      </div>
+    </div>
+
+
+
+    <!-- 1. PRE-FLIGHT IMAGE QUALITY WARNING MODAL -->
+    <div class="modal" id="modal-quality-alert" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(6px);z-index:99999;padding:16px;">
+      <div style="background:var(--bg,#ffffff);border:1.5px solid #F59E0B;border-radius:20px;padding:24px;width:100%;max-width:420px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);color:var(--text,#0f172a);text-align:center;">
+        <div style="width:54px;height:54px;border-radius:50%;background:#FEF3C7;color:#D97706;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 12px;">
+          ⚠️
+        </div>
+        <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;color:var(--text,#0f172a);">Image Quality Warning</h3>
+        <p id="quality-alert-message" style="font-size:13.5px;color:#475569;margin:0 0 14px;line-height:1.5;">
+          The captured document appears blurry or has low lighting. Text may be difficult for the Vision AI to transcribe accurately.
+        </p>
+        <div id="quality-metrics-pill" style="font-size:11.5px;font-weight:700;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;padding:6px 12px;margin-bottom:12px;color:#64748B;">
+          Luminance: <span id="quality-metric-lum">--</span> · Sharpness: <span id="quality-metric-sharp">--</span>
+        </div>
+        <div id="quality-debug-scores" style="display:none;font-size:11px;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#0F172A;color:#10B981;border-radius:6px;padding:6px 10px;margin-bottom:16px;text-align:left;line-height:1.4;"></div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="btn" style="background:#0284C7;color:#fff;border-radius:10px;font-weight:700;padding:12px;" onclick="window.app.retryCaptureFromAlert()">
+            Retake
+          </button>
+          <button class="btn ghost" id="quality-torch-btn" style="display:none;border-radius:10px;font-weight:700;padding:10px;color:#0284C7;border-color:#0284C7;background:#F0F9FF;" onclick="window.app.turnOnTorchAndRetake()">
+            🔦 Turn On Flashlight &amp; Retake
+          </button>
+          <button class="btn ghost" style="color:#64748B;border:1px solid #CBD5E1;border-radius:10px;font-size:13px;font-weight:600;padding:10px;" onclick="window.app.bypassQualityAlert()">
+            Proceed anyway
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. MISSING ESSENTIAL FIELDS APPROVAL CONFIRMATION MODAL -->
+    <div class="modal" id="modal-missing-confirm" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(15,23,42,0.75);backdrop-filter:blur(6px);z-index:99999;padding:16px;">
+      <div style="background:var(--bg,#ffffff);border:1.5px solid #2563EB;border-radius:20px;padding:24px;width:100%;max-width:420px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.35);color:var(--text,#0f172a);text-align:center;">
+        <div style="width:54px;height:54px;border-radius:50%;background:#EFF6FF;color:#2563EB;display:flex;align-items:center;justify-content:center;font-size:26px;margin:0 auto 12px;">
+          📋
+        </div>
+        <h3 style="margin:0 0 8px;font-size:18px;font-weight:800;color:var(--text,#0f172a);">Approve Incomplete Record?</h3>
+        <p id="missing-confirm-message" style="font-size:13.5px;color:#475569;margin:0 0 14px;line-height:1.5;">
+          The following essential fields are currently blank:
+        </p>
+        <div id="missing-fields-chips" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:18px;">
+        </div>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="btn" style="background:#0284C7;color:#fff;border-radius:10px;font-weight:700;padding:12px;" onclick="window.app.closeMissingConfirmModal()">
+            ✍️ Go Back and Fill In
+          </button>
+          <button class="btn ghost" style="border:1px solid #CBD5E1;border-radius:10px;font-weight:600;padding:10px;color:#DC2626;" onclick="window.app.confirmApproveDespiteMissing()">
+            ⚠️ Confirm &amp; Bill Paper (Mark Missing as NAD)
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. COMMUNITY & TEAM DOCTORS MANAGEMENT MODAL -->
+    <div class="modal" id="team-management-modal" style="display:none;align-items:center;justify-content:center;position:fixed;inset:0;background:rgba(15,23,42,0.8);backdrop-filter:blur(6px);z-index:99999;padding:16px;">
+      <div style="background:var(--bg,#ffffff);border:1.5px solid #0284C7;border-radius:20px;width:100%;max-width:620px;max-height:85vh;display:flex;flex-direction:column;box-shadow:0 25px 50px -12px rgba(0,0,0,0.4);color:var(--text,#0f172a);overflow:hidden;">
+        <!-- Modal Top Bar -->
+        <div style="padding:16px 20px;border-bottom:1px solid #E2E8F0;display:flex;align-items:center;justify-content:space-between;background:#F8FAFC;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;border-radius:10px;background:#F0F9FF;color:#0284C7;display:flex;align-items:center;justify-content:center;font-size:18px;">
+              👥
+            </div>
+            <div>
+              <b style="font-size:16px;display:block;">Community Team &amp; Doctors</b>
+              <small id="team-modal-hub-sub" style="color:#64748B;font-size:12px;">Manage attending physicians &amp; field staff</small>
+            </div>
+          </div>
+          <button type="button" class="modal-close-icon-btn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#64748B;padding:4px 8px;" onclick="window.app.closeTeamManagementModal()">
+            ✕
+          </button>
+        </div>
+
+        <!-- Modal Body Content -->
+        <div style="padding:18px;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:16px;">
+          <!-- Active Join Code Pill & Rotate -->
+          <div style="background:#F0FDF4;border:1px solid #86EFAC;border-radius:14px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <small style="color:#166534;font-size:11px;font-weight:700;text-transform:uppercase;display:block;">Current Workspace Join Code</small>
+              <b id="team-modal-active-code" style="font-size:18px;color:#14532D;letter-spacing:1px;font-family:monospace;">CAMP-2026</b>
+            </div>
+            <button class="btn ghost" style="width:auto;padding:5px 12px;font-size:11.5px;color:#166534;border:1px solid #86EFAC;background:#fff;" onclick="window.app.rotateTeamWorkspaceCode()">
+              🔄 Rotate Code
+            </button>
+          </div>
+
+          <!-- Invite Staff or Physician Form -->
+          <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:14px;padding:14px;">
+            <b style="font-size:13.5px;color:#0F172A;display:block;margin-bottom:8px;">➕ Invite Staff or Physician</b>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <input id="team-invite-email" type="email" placeholder="doctor.email@hospital.org" style="flex:2;min-width:180px;height:38px;padding:0 12px;border-radius:10px;border:1px solid #CBD5E1;font-size:13px;background:#fff;">
+              <select id="team-invite-role" style="flex:1;min-width:120px;height:38px;padding:0 10px;border-radius:10px;border:1px solid #CBD5E1;font-size:12.5px;background:#fff;">
+                <option value="doctor">Physician</option>
+                <option value="field_worker">User</option>
+              </select>
+              <button class="btn" style="width:auto;height:38px;padding:0 16px;font-size:12.5px;background:#0284C7;" onclick="window.app.sendTeamInvite()">
+                Generate Invite
+              </button>
+            </div>
+            <div id="team-invite-created-box" style="display:none;margin-top:10px;padding:8px 12px;border-radius:8px;background:#EFF6FF;border:1px solid #BFDBFE;font-size:12px;color:#1E40AF;">
+            </div>
+          </div>
+
+          <!-- Pending Membership Requests (Visible to Community Admin) -->
+          <div id="team-pending-memberships-wrap" style="display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <b style="font-size:14px;color:#B45309;">⏳ Pending Membership Requests (<span id="team-pending-count">0</span>)</b>
+            </div>
+            <div id="team-pending-list" style="display:flex;flex-direction:column;gap:8px;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <!-- Active Workspace Invitations -->
+          <div id="team-invitations-wrap" style="display:none;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <b style="font-size:14px;color:#0F172A;">🎟️ Active Invitations (<span id="team-invites-count">0</span>)</b>
+            </div>
+            <div id="team-invites-list" style="display:flex;flex-direction:column;gap:8px;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <!-- Team Members List -->
+          <div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <b style="font-size:14px;color:#0F172A;">Attending Staff &amp; Doctors (<span id="team-members-count">0</span>)</b>
+            </div>
+            <div id="team-members-list" style="display:flex;flex-direction:column;gap:8px;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Modal Footer -->
+        <div style="padding:12px 18px;border-top:1px solid #E2E8F0;display:flex;justify-content:flex-end;background:#F8FAFC;">
+          <button class="btn ghost" style="width:auto;padding:6px 16px;font-size:12.5px;border:1px solid #CBD5E1;" onclick="window.app.closeTeamManagementModal()">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST NOTIFICATION -->
+    <div class="toast" id="toast"></div>
+
+  </div>
+
+  <!-- Main Application Logic Module (Cache-Busted) -->
+  <script type="module" src="js/app.js?v=20261116_bug07"></script>
+</body>
+</html>
