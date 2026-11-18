@@ -505,6 +505,21 @@ def parse_clinical_date(date_val: Any) -> Optional[date]:
     return None
 
 
+def is_ambiguous_date(date_val: Any) -> Tuple[bool, Optional[str]]:
+    """Check if date format has ambiguous day/month ordering (both <= 12 and different)."""
+    if date_val is None:
+        return False, None
+    s = str(date_val).strip()
+    parts = re.split(r"[-/.]", s)
+    if len(parts) == 3:
+        p0, p1 = parts[0].strip(), parts[1].strip()
+        if p0.isdigit() and p1.isdigit():
+            v0, v1 = int(p0), int(p1)
+            if 1 <= v0 <= 12 and 1 <= v1 <= 12 and v0 != v1 and len(p0) <= 2 and len(p1) <= 2:
+                return True, f"Ambiguous day/month ordering in '{s}'. In Indian clinical records DD/MM/YYYY is standard; human verification required."
+    return False, None
+
+
 def calculate_completed_age(dob: Optional[date], exam_date: Optional[date]) -> Optional[int]:
     """Calculate completed integer years between DOB and examination date.
 
@@ -550,6 +565,22 @@ def classify_paediatric(fields: Dict[str, Any]) -> Dict[str, Any]:
             return item.get("value")
         return item
 
+    def _get_conf(key: str) -> float:
+        item = fields.get(key)
+        if item is None:
+            return 1.0
+        if isinstance(item, list) and len(item) >= 2:
+            try:
+                return float(item[1])
+            except (ValueError, TypeError):
+                return 1.0
+        if isinstance(item, dict):
+            try:
+                return float(item.get("confidence", 1.0))
+            except (ValueError, TypeError):
+                return 1.0
+        return 1.0
+
     # Core demographics
     age_raw = _get("age") or _get("age_years")
     sex_raw = _get("gender") or _get("sex")
@@ -589,8 +620,8 @@ def classify_paediatric(fields: Dict[str, Any]) -> Dict[str, Any]:
     ht_f = _parse_float(height_raw)
     sys_i, dia_i = _parse_bp(bp_raw)
 
-    # Only classify as paediatric if age < 18
-    is_paediatric = (age_f is not None and age_f < 18.0)
+    # Only classify as paediatric if explicitly marked paediatric or age < 18
+    is_paediatric = bool(fields.get("is_paediatric")) or (str(fields.get("target_group", "")).lower() == "paediatric") or (age_f is not None and age_f < 18.0)
 
     # BMI
     bmi_val: Optional[float] = None
@@ -637,10 +668,23 @@ def classify_paediatric(fields: Dict[str, Any]) -> Dict[str, Any]:
 
     atr_cls = classify_atr(atr_raw)
 
+    dob_conf = _get_conf("dob") if (fields.get("dob") is not None) else _get_conf("date_of_birth")
+    exam_conf = _get_conf("exam_date") if (fields.get("exam_date") is not None) else _get_conf("examination_date")
+    is_dob_ambig, _ = is_ambiguous_date(dob_raw)
+    is_exam_ambig, _ = is_ambiguous_date(exam_raw)
+    date_needs_verification = (dob_conf < 0.8 or exam_conf < 0.8 or is_dob_ambig or is_exam_ambig)
+
     # Aggregate human-readable alerts
     alerts: List[str] = []
     if age_discrepancy_alert:
         alerts.append(age_discrepancy_alert)
+    if is_dob_ambig or is_exam_ambig:
+        alerts.append("Date Format Verification [ADVISORY]: Ambiguous day/month format detected in DOB or Examination Date. Confirm DD/MM/YYYY.")
+    if dob_conf < 0.8 or exam_conf < 0.8:
+        alerts.append("Clinical Anchor Verification [WARNING]: Low extraction confidence on Date of Birth or Examination Date (<80%). Reviewer verification required.")
+    if is_paediatric and age_f is None and (wt_f is not None or ht_f is not None):
+        alerts.append("Demographic Notice [REQUIRED]: Valid age or Date of Birth with Examination Date required for paediatric growth staging.")
+
     if is_paediatric:
         bmi_al = bmi_cls.get("alert_level", "none")
         if bmi_al in ("advisory", "high", "critical", "warning"):

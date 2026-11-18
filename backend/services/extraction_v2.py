@@ -201,16 +201,115 @@ Return strictly a JSON object."""
                     normalized_str = f"{sys_val}/{dia_val}"
             else:
                 status = "invalid_bp"
-        elif field_type in ("signature_present", "consent"):
+        elif field_type in ("signature_present", "consent", "yes_no"):
             raw_clean = raw_text.strip().lower()
-            if raw_clean in ("yes", "y", "true", "present", "signed", "✓", "✔", "☑", "[x]", "[x]", "/", "|"):
-                normalized_str = "Yes"
-                status = "valid"
-                rule_applied = "checkbox_affirmative"
-            elif raw_clean in ("no", "n", "false", "absent", "unsigned", "✗", "x"):
-                normalized_str = "No"
-                status = "valid"
-                rule_applied = "checkbox_negative"
+            # Check for pure empty printed checkbox outlines
+            if raw_clean in ("[ ]", "[  ]", "( )", "(  )", "[]", "()", "[ ] yes [ ] no", "[ ] no [ ] yes", "none", "nil"):
+                return wrap_field_value(
+                    raw_text=raw_text,
+                    normalized_value=None,
+                    confidence=confidence,
+                    status="empty",
+                    crop_bbox=field_def.get("page_region"),
+                    rule_applied="checkbox_unmarked_empty"
+                )
+
+            checkbox_resolved = False
+
+            # 1. Multi-box prefix pattern: e.g. [x] Yes  [ ] No  or  [ ] No  [x] Yes
+            p_pattern = r'\[\s*([xX✓✔*+]?)\s*\]\s*(yes|y|true|no|n|false)\b'
+            p_matches = re.findall(p_pattern, raw_clean)
+            if len(p_matches) >= 2:
+                marks = {g: (mark.strip() != '') for mark, g in p_matches}
+                y_marked = any(marks.get(k, False) for k in ('yes', 'y', 'true'))
+                n_marked = any(marks.get(k, False) for k in ('no', 'n', 'false'))
+                if y_marked and n_marked:
+                    normalized_str = raw_text
+                    status = "format_warning"
+                    rule_applied = "checkbox_conflicting_needs_review"
+                    checkbox_resolved = True
+                elif y_marked:
+                    normalized_str = "Yes"
+                    status = "valid"
+                    rule_applied = "checkbox_affirmative"
+                    checkbox_resolved = True
+                elif n_marked:
+                    normalized_str = "No"
+                    status = "valid"
+                    rule_applied = "checkbox_negative"
+                    checkbox_resolved = True
+                else:
+                    return wrap_field_value(
+                        raw_text=raw_text,
+                        normalized_value=None,
+                        confidence=confidence,
+                        status="empty",
+                        crop_bbox=field_def.get("page_region"),
+                        rule_applied="checkbox_unmarked_empty"
+                    )
+
+            # 2. Multi-box suffix pattern: e.g. Yes [x]  No [ ]  or  No [ ]  Yes [x]
+            if not checkbox_resolved:
+                s_pattern = r'\b(yes|y|true|no|n|false)\s*\[\s*([xX✓✔*+]?)\s*\]'
+                s_matches = re.findall(s_pattern, raw_clean)
+                if len(s_matches) >= 2:
+                    marks = {g: (mark.strip() != '') for g, mark in s_matches}
+                    y_marked = any(marks.get(k, False) for k in ('yes', 'y', 'true'))
+                    n_marked = any(marks.get(k, False) for k in ('no', 'n', 'false'))
+                    if y_marked and n_marked:
+                        normalized_str = raw_text
+                        status = "format_warning"
+                        rule_applied = "checkbox_conflicting_needs_review"
+                        checkbox_resolved = True
+                    elif y_marked:
+                        normalized_str = "Yes"
+                        status = "valid"
+                        rule_applied = "checkbox_affirmative"
+                        checkbox_resolved = True
+                    elif n_marked:
+                        normalized_str = "No"
+                        status = "valid"
+                        rule_applied = "checkbox_negative"
+                        checkbox_resolved = True
+                    else:
+                        return wrap_field_value(
+                            raw_text=raw_text,
+                            normalized_value=None,
+                            confidence=confidence,
+                            status="empty",
+                            crop_bbox=field_def.get("page_region"),
+                            rule_applied="checkbox_unmarked_empty"
+                        )
+
+            # 3. Single affirmative / negative pattern
+            if not checkbox_resolved:
+                is_yes_marked = (
+                    bool(re.search(r'^(?:\[\s*[xX✓✔*+]\s*\]|\(\s*[xX✓✔*+]\s*\)|[✓✔☑])\s*(?:yes|y|true)$', raw_clean))
+                    or bool(re.search(r'^(?:yes|y|true)\s*(?:\[\s*[xX✓✔*+]\s*\]|\(\s*[xX✓✔*+]\s*\)|[✓✔☑])$', raw_clean))
+                    or raw_clean in ("yes", "y", "true", "present", "signed", "✓", "✔", "☑", "[x]", "[x]", "[✓]", "/", "|")
+                )
+                is_no_marked = (
+                    bool(re.search(r'^(?:\[\s*[xX✓✔*+]\s*\]|\(\s*[xX✓✔*+]\s*\)|[✓✔☑])\s*(?:no|n|false)$', raw_clean))
+                    or bool(re.search(r'^(?:no|n|false)\s*(?:\[\s*[xX✓✔*+]\s*\]|\(\s*[xX✓✔*+]\s*\)|[✓✔☑])$', raw_clean))
+                    or raw_clean in ("no", "n", "false", "absent", "unsigned", "✗", "x")
+                )
+
+                if is_yes_marked and is_no_marked:
+                    normalized_str = raw_text
+                    status = "format_warning"
+                    rule_applied = "checkbox_conflicting_needs_review"
+                elif is_yes_marked:
+                    normalized_str = "Yes"
+                    status = "valid"
+                    rule_applied = "checkbox_affirmative"
+                elif is_no_marked:
+                    normalized_str = "No"
+                    status = "valid"
+                    rule_applied = "checkbox_negative"
+                else:
+                    # Unclear or ambiguous marks: preserve raw, flag format_warning for review
+                    status = "format_warning"
+                    rule_applied = "checkbox_unclear_needs_review"
         elif field_type == "system_check":
             raw_clean = raw_text.strip().lower()
             if raw_clean in ("normal", "n", "wnl", "w.n.l", "clear", "intact", "nil", "none"):

@@ -3413,7 +3413,7 @@ function proceedToPairsScreen() {
     const m_hist = sr.medical_history || {};
     const f_hist = sr.family_history || {};
     const h_asmt = sr.health_assessment || {};
-    const s_exam = sr.system_examination || {};
+    const s_exam = sr.system_examination || sr.systemic_examination || {};
     const vis = sr.vision || {};
     const den = sr.dental || {};
     const ref = sr.referral || {};
@@ -3438,8 +3438,10 @@ function proceedToPairsScreen() {
     if ($('rev-gender')) $('rev-gender').value = getVal(p_info, 'gender', record.gender || '');
     if ($('rev-blood-group')) $('rev-blood-group').value = getVal(p_info, 'blood_group', record.blood_group || '');
     if ($('rev-dob')) $('rev-dob').value = getVal(p_info, 'dob', record.dob || '');
+    if ($('rev-exam-date')) $('rev-exam-date').value = getVal(h_asmt, 'exam_date', getVal(h_asmt, 'examination_date', record.exam_date || record.examination_date || ''));
     if ($('rev-doc-id')) $('rev-doc-id').value = getVal(p_info, 'doc_id', record.moc_doc_id || '');
     if ($('rev-adm-id')) $('rev-adm-id').value = getVal(p_info, 'admission_id', record.admission_id || '');
+    if ($('rev-class-and-section')) $('rev-class-and-section').value = getVal(p_info, 'class_and_section', getVal(sr, 'class_and_section', record.class_and_section || ''));
     if ($('rev-school')) $('rev-school').value = getVal(p_info, 'school_college_name', record.school_name || '');
     if ($('rev-mobile')) $('rev-mobile').value = getVal(p_info, 'mobile_number', record.mobile_number || '');
     if ($('rev-address')) $('rev-address').value = getVal(p_info, 'address', record.address || '');
@@ -3495,7 +3497,19 @@ function proceedToPairsScreen() {
     if ($('rev-sys-cvs')) $('rev-sys-cvs').value = getVal(s_exam, 'cardiovascular_system', '');
     if ($('rev-sys-abdomen')) $('rev-sys-abdomen').value = getVal(s_exam, 'abdomen', '');
     if ($('rev-sys-cns')) $('rev-sys-cns').value = getVal(s_exam, 'central_nervous_system', '');
-    const entVal = getVal(s_exam, 'ent', '') || getVal(s_exam, 'ear', '') || getVal(s_exam, 'nose', '') || getVal(s_exam, 'throat', '') || record.otoscopy_findings || record.otoscope_left_ear || record.otoscope_right_ear || '';
+
+    // ENT 4 Independent Fields (Otoscopy RE/LE, Nose, Throat)
+    const otoRear = getVal(s_exam, 'otoscope_right_ear', getVal(s_exam, 'otoscopy_right_ear', getVal(sr, 'otoscope_right_ear', record.otoscopy_right || record.otoscope_right_ear || '')));
+    const otoLear = getVal(s_exam, 'otoscope_left_ear', getVal(s_exam, 'otoscopy_left_ear', getVal(sr, 'otoscope_left_ear', record.otoscopy_left || record.otoscope_left_ear || '')));
+    const sysNose = getVal(s_exam, 'sys_nose', getVal(s_exam, 'nose', getVal(sr, 'sys_nose', record.sys_nose || '')));
+    const sysThroat = getVal(s_exam, 'sys_throat', getVal(s_exam, 'throat', getVal(sr, 'sys_throat', record.sys_throat || '')));
+
+    if ($('rev-ent-rear')) $('rev-ent-rear').value = otoRear;
+    if ($('rev-ent-lear')) $('rev-ent-lear').value = otoLear;
+    if ($('rev-ent-nose')) $('rev-ent-nose').value = sysNose;
+    if ($('rev-ent-throat')) $('rev-ent-throat').value = sysThroat;
+
+    const entVal = otoRear || otoLear || sysNose || sysThroat || getVal(s_exam, 'ent', '') || getVal(s_exam, 'ear', '') || record.otoscopy_findings || '';
     if ($('rev-sys-ent')) $('rev-sys-ent').value = entVal;
     const skinVal = getVal(s_exam, 'skin', '') || getVal(s_exam, 'hair', '');
     if ($('rev-sys-skin')) $('rev-sys-skin').value = skinVal;
@@ -3517,6 +3531,9 @@ function proceedToPairsScreen() {
     if ($('badge-name')) $('badge-name').style.display = uncertain.includes('person_name') ? 'inline-flex' : 'none';
     if ($('badge-bp')) $('badge-bp').style.display = uncertain.includes('blood_pressure') ? 'inline-flex' : 'none';
     if ($('badge-allergies')) $('badge-allergies').style.display = uncertain.includes('known_allergies') ? 'inline-flex' : 'none';
+    if ($('badge-dob')) $('badge-dob').style.display = (uncertain.includes('dob') || uncertain.includes('date_of_birth')) ? 'inline-flex' : 'none';
+    if ($('badge-exam-date')) $('badge-exam-date').style.display = (uncertain.includes('exam_date') || uncertain.includes('examination_date')) ? 'inline-flex' : 'none';
+    if ($('badge-age')) $('badge-age').style.display = (uncertain.includes('age') || uncertain.includes('age_years')) ? 'inline-flex' : 'none';
 
     // Consent Gating initialization
     const consentGiven = (record.consent_given !== 0 && record.consent_given !== false) &&
@@ -3531,8 +3548,8 @@ function proceedToPairsScreen() {
     const currentRole = getCurrentUserRole();
     const isFieldWorker = currentRole === 'field_worker';
     const identityInputs = new Set([
-      'rev-name', 'rev-age', 'rev-gender', 'rev-dob', 'rev-mobile',
-      'rev-address', 'rev-id-num', 'rev-institution', 'rev-class', 'rev-section', 'rev-roll'
+      'rev-name', 'rev-age', 'rev-gender', 'rev-dob', 'rev-exam-date', 'rev-mobile',
+      'rev-address', 'rev-id-num', 'rev-institution', 'rev-class', 'rev-section', 'rev-class-and-section', 'rev-roll'
     ]);
 
     const reviewInputs = document.querySelectorAll('#review-screen input, #review-screen select, #review-screen textarea');
@@ -3576,6 +3593,7 @@ function proceedToPairsScreen() {
 
 
     evaluateAndApplyFieldHighlighting(record);
+    updateAssessmentVitalsSummary();
     attachReviewFieldEventListeners();
     switchReviewTab('personal');
   }
@@ -3608,7 +3626,11 @@ function proceedToPairsScreen() {
     const fieldCropDefs = {
       'person_name': { canvasId: 'crop-canvas-name', boxId: 'crop-preview-name', src: p1Src, region: { x: 0.08, y: 0.04, w: 0.55, h: 0.05 } },
       'blood_pressure': { canvasId: 'crop-canvas-bp', boxId: 'crop-preview-bp', src: p2Src, region: { x: 0.08, y: 0.16, w: 0.40, h: 0.06 } },
-      'known_allergies': { canvasId: 'crop-canvas-allergies', boxId: 'crop-preview-allergies', src: p1Src, region: { x: 0.08, y: 0.38, w: 0.50, h: 0.06 } }
+      'known_allergies': { canvasId: 'crop-canvas-allergies', boxId: 'crop-preview-allergies', src: p1Src, region: { x: 0.08, y: 0.38, w: 0.50, h: 0.06 } },
+      'dob': { canvasId: 'crop-canvas-dob', boxId: 'crop-preview-dob', src: p1Src, region: { x: 0.48, y: 0.08, w: 0.44, h: 0.05 } },
+      'date_of_birth': { canvasId: 'crop-canvas-dob', boxId: 'crop-preview-dob', src: p1Src, region: { x: 0.48, y: 0.08, w: 0.44, h: 0.05 } },
+      'exam_date': { canvasId: 'crop-canvas-exam-date', boxId: 'crop-preview-exam-date', src: p2Src, region: { x: 0.52, y: 0.02, w: 0.42, h: 0.05 } },
+      'examination_date': { canvasId: 'crop-canvas-exam-date', boxId: 'crop-preview-exam-date', src: p2Src, region: { x: 0.52, y: 0.02, w: 0.42, h: 0.05 } }
     };
 
     Object.entries(fieldCropDefs).forEach(([fieldKey, def]) => {
@@ -3635,6 +3657,109 @@ function proceedToPairsScreen() {
         box.style.display = 'none';
       }
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Clinical Date & Completed Age Calculation Engine
+  // ---------------------------------------------------------------------------
+
+  export function parseClinicalDate(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string') {
+      return { date: null, isAmbiguous: false, raw: '', error: 'Empty date' };
+    }
+    const s = dateStr.trim();
+    if (!s || ['none', 'null', 'nil', 'n/a', 'na', 'unknown', '???'].includes(s.toLowerCase())) {
+      return { date: null, isAmbiguous: false, raw: s, error: 'Unspecified' };
+    }
+
+    // ISO format: YYYY-MM-DD or YYYY/MM/DD
+    const isoMatch = s.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/);
+    if (isoMatch) {
+      const yr = parseInt(isoMatch[1], 10);
+      const mo = parseInt(isoMatch[2], 10);
+      const dy = parseInt(isoMatch[3], 10);
+      if (mo >= 1 && mo <= 12 && dy >= 1 && dy <= 31) {
+        const d = new Date(yr, mo - 1, dy);
+        if (d.getFullYear() === yr && d.getMonth() === mo - 1 && d.getDate() === dy) {
+          return { date: d, isAmbiguous: false, raw: s, error: null };
+        }
+      }
+      return { date: null, isAmbiguous: false, raw: s, error: 'Invalid calendar date' };
+    }
+
+    // Clinical format: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
+    const parts = s.split(/[-/.]/);
+    if (parts.length === 3) {
+      const p0 = parts[0].trim();
+      const p1 = parts[1].trim();
+      const p2 = parts[2].trim();
+
+      if (/^\d{1,2}$/.test(p0) && /^\d{1,2}$/.test(p1) && /^\d{2,4}$/.test(p2)) {
+        const v0 = parseInt(p0, 10);
+        const v1 = parseInt(p1, 10);
+        let yr = parseInt(p2, 10);
+        if (p2.length === 2) {
+          yr = yr <= 50 ? 2000 + yr : 1900 + yr;
+        }
+
+        let isAmbiguous = false;
+        let dy = v0;
+        let mo = v1;
+
+        if (v0 <= 12 && v1 > 12 && v1 <= 31) {
+          // Inadvertent MM/DD format
+          isAmbiguous = true;
+          dy = v1;
+          mo = v0;
+        } else if (v0 <= 12 && v1 <= 12 && v0 !== v1) {
+          // Both <= 12: DD/MM is standard in Indian records, but flagged for human verification
+          isAmbiguous = true;
+        }
+
+        if (mo >= 1 && mo <= 12 && dy >= 1 && dy <= 31 && yr >= 1900 && yr <= 2100) {
+          const d = new Date(yr, mo - 1, dy);
+          if (d.getFullYear() === yr && d.getMonth() === mo - 1 && d.getDate() === dy) {
+            return { date: d, isAmbiguous, raw: s, error: null };
+          }
+        }
+      }
+    }
+
+    return { date: null, isAmbiguous: false, raw: s, error: 'Unrecognized date format' };
+  }
+
+  export function calculateCompletedAge(dobStr, examDateStr) {
+    const pDob = parseClinicalDate(dobStr);
+    const pExam = parseClinicalDate(examDateStr);
+
+    if (!pDob.date || !pExam.date) {
+      return {
+        age: null,
+        error: !pDob.date && !pExam.date ? 'Both DOB and examination date required' :
+               (!pDob.date ? 'Valid DOB required' : 'Valid examination date required'),
+        isAmbiguous: pDob.isAmbiguous || pExam.isAmbiguous
+      };
+    }
+
+    if (pExam.date < pDob.date) {
+      return {
+        age: null,
+        error: 'Examination date precedes date of birth',
+        isAmbiguous: pDob.isAmbiguous || pExam.isAmbiguous
+      };
+    }
+
+    let years = pExam.date.getFullYear() - pDob.date.getFullYear();
+    const m = pExam.date.getMonth() - pDob.date.getMonth();
+    if (m < 0 || (m === 0 && pExam.date.getDate() < pDob.date.getDate())) {
+      years--;
+    }
+
+    return {
+      age: Math.max(0, years),
+      error: null,
+      isAmbiguous: pDob.isAmbiguous || pExam.isAmbiguous
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -3767,8 +3892,36 @@ function proceedToPairsScreen() {
     }, 350);
   }
 
+  export function updateAssessmentVitalsSummary() {
+    const h = $('rev-height')?.value.trim();
+    const w = $('rev-weight')?.value.trim();
+    const bp = $('rev-bp')?.value.trim();
+    const pulse = $('rev-pulse')?.value.trim();
+    const atr = $('rev-atr')?.value.trim();
+    const bmiText = $('calculated-bmi')?.textContent?.trim();
+
+    let bmi = '-- kg/m²';
+    if (bmiText && bmiText !== '-- kg/m²' && !bmiText.includes('--')) {
+      bmi = bmiText;
+    } else {
+      const hF = parseFloat(h);
+      const wF = parseFloat(w);
+      if (!isNaN(hF) && !isNaN(wF) && hF > 0 && wF > 0) {
+        bmi = (wF / Math.pow(hF / 100, 2)).toFixed(1) + ' kg/m²';
+      }
+    }
+
+    if ($('summary-vital-height')) $('summary-vital-height').textContent = h ? `${h} cm` : '-- cm';
+    if ($('summary-vital-weight')) $('summary-vital-weight').textContent = w ? `${w} kg` : '-- kg';
+    if ($('summary-vital-bmi')) $('summary-vital-bmi').textContent = bmi;
+    if ($('summary-vital-bp')) $('summary-vital-bp').textContent = bp ? `${bp} mmHg` : '--/-- mmHg';
+    if ($('summary-vital-pulse')) $('summary-vital-pulse').textContent = pulse ? `${pulse} bpm` : '-- bpm';
+    if ($('summary-vital-atr')) $('summary-vital-atr').textContent = (atr !== '' && !isNaN(parseFloat(atr))) ? `${parseFloat(atr)}°` : '--°';
+  }
+
   export function onVitalsChanged() {
     updateReviewClinicalAlerts();
+    updateAssessmentVitalsSummary();
     evaluateAndApplyFieldHighlighting();
     checkDuplicatePatient();
   }
@@ -3807,7 +3960,8 @@ function proceedToPairsScreen() {
       const dia = parts[1] ? parseInt(parts[1], 10) : null;
       if (isNaN(sys)) return false;
       if (ctx.isPaed) {
-        const ageInt = Math.min(17, Math.max(1, Math.round(ctx.age || 10)));
+        if (!ctx.age || isNaN(ctx.age) || ctx.age <= 0) return false;
+        const ageInt = Math.min(17, Math.max(1, Math.round(ctx.age)));
         const bpRef = (typeof PAED_BP_REF !== 'undefined' ? PAED_BP_REF : {})[ctx.sexNorm || 'M']?.[ageInt];
         if (bpRef) {
           const [p50_sys, p90_sys, p95_sys, p50_dia, p90_dia, p95_dia] = bpRef;
@@ -3828,7 +3982,9 @@ function proceedToPairsScreen() {
       const bmiVal = parseFloat(nums[0]);
       if (isNaN(bmiVal)) return false;
       if (ctx.isPaed) {
-        const ageInt = Math.min(18, Math.max(2, Math.round(ctx.age || 10)));
+        if (!ctx.age || isNaN(ctx.age) || ctx.age <= 0) return false;
+        if (ctx.age < 2.0 || ctx.age >= 18.0) return false;
+        const ageInt = Math.round(ctx.age);
         const lms = (typeof IAP_LMS_BMI !== 'undefined' ? IAP_LMS_BMI : {})[ctx.sexNorm || 'M']?.[ageInt];
         if (lms && typeof normCdf === 'function') {
           const [L, M, S] = lms;
@@ -3935,8 +4091,8 @@ function proceedToPairsScreen() {
     }
 
     // 13. Systemic Exam details
-    if (['sys-rs', 'sys-cvs', 'sys-abdomen', 'sys-cns', 'sys-ent', 'sys-skin', 'respiratory_system', 'cardiovascular_system', 'central_nervous_system', 'ear', 'nose', 'throat', 'skin', 'hair', 'musculoskeletal_system', 'otoscope_right_ear', 'otoscope_left_ear', 'sys_nose', 'sys_throat', 'sys_skin', 'sys_hair', 'sys_other_systems', 'ent'].includes(k)) {
-      const normalPhrases = ['normal', 'nad', 'wnl', 'clear', 'intact', 'unremarkable', 'nil', 'none', 'healthy', 'patent', 'tm intact', 'intact tm', 's1s2 heard', 'no abnormality', 'vesicular'];
+    if (['sys-rs', 'sys-cvs', 'sys-abdomen', 'sys-cns', 'sys-ent', 'sys-skin', 'respiratory_system', 'cardiovascular_system', 'central_nervous_system', 'ear', 'nose', 'throat', 'skin', 'hair', 'musculoskeletal_system', 'otoscope_right_ear', 'otoscope_left_ear', 'sys_nose', 'sys_throat', 'sys_skin', 'sys_hair', 'sys_other_systems', 'ent', 'abdomen', 'cns', 'sys_abdomen', 'sys_cns', 'ent-rear', 'ent-lear', 'ent-nose', 'ent-throat'].includes(k)) {
+      const normalPhrases = ['normal', 'nad', 'wnl', 'clear', 'intact', 'unremarkable', 'nil', 'none', 'healthy', 'patent', 'tm intact', 'intact tm', 's1s2 heard', 'no abnormality', 'vesicular', 'soft, non-tender', 'soft non-tender', 'conscious, oriented', 'conscious oriented', 'not recorded'];
       const abnPhrases = ['wax', 'csom', 'aom', 'dull', 'retracted', 'perforation', 'discharge', 'abnormal', 'congestion', 'infection', 'impaction', 'cerumen', 'fluid', 'dns', 'deviated', 'polyp', 'rhinitis', 'obstruction', 'tonsill', 'pharyng', 'erythem', 'exudat', 'inflam', 'swollen', 'pityriasis', 'eczema', 'scabies', 'rash', 'lesion', 'hypopigmented', 'dermatitis', 'pediculosis', 'lice', 'nits', 'alopecia', 'dandruff', 'murmur', 'wheeze', 'rhonchi', 'crepitation', 'creps', 'hepatomegaly', 'splenomegaly', 'mass', 'tender', 'organomegaly'];
       if (normalPhrases.some(n => low === n || low.startsWith(n))) {
         if (!abnPhrases.some(a => low.includes(a))) return false;
@@ -3995,12 +4151,30 @@ function proceedToPairsScreen() {
 
   export function evaluateAndApplyFieldHighlighting(record = null) {
     const rec = record || state.activeRecord || {};
-    const ageVal = parseFloat($('rev-age')?.value || rec.age || 0);
-    const rawGender = ($('rev-gender')?.value || rec.gender || '').trim().toUpperCase();
+    const rawAge = $('rev-age') ? $('rev-age').value.trim() : (rec.age !== undefined && rec.age !== null ? String(rec.age).trim() : '');
+    const rawDob = $('rev-dob') ? $('rev-dob').value.trim() : (rec.dob || '');
+    const rawExam = $('rev-exam-date') ? $('rev-exam-date').value.trim() : (rec.exam_date || rec.examination_date || '');
+
+    let ageVal = null;
+    if (rawAge) {
+      const parsedAge = parseFloat(rawAge);
+      if (!isNaN(parsedAge) && parsedAge > 0) ageVal = parsedAge;
+    }
+    if (ageVal === null && rawDob && rawExam) {
+      const ageRes = calculateCompletedAge(rawDob, rawExam);
+      if (ageRes.age !== null) ageVal = ageRes.age;
+    }
+
+    const rawGender = ($('rev-gender') ? $('rev-gender').value.trim() : (rec.gender || '')).toUpperCase();
     const sexNorm = (rawGender.startsWith('F') || rawGender.startsWith('G') || rawGender.startsWith('W')) ? 'F' : 'M';
-    const isPaed = (rec.is_paediatric) || (!isNaN(ageVal) && ageVal > 0 && ageVal < 18);
-    const heightVal = parseFloat($('rev-height')?.value || rec.height || 0);
-    const weightVal = parseFloat($('rev-weight')?.value || rec.weight || 0);
+    const isPaed = (rec.is_paediatric) || (ageVal !== null && ageVal > 0 && ageVal < 18) || (rec.target_group === 'paediatric');
+
+    const rawHeight = $('rev-height') ? $('rev-height').value.trim() : (rec.height !== undefined && rec.height !== null ? String(rec.height).trim() : '');
+    const heightVal = rawHeight ? parseFloat(rawHeight) : 0;
+
+    const rawWeight = $('rev-weight') ? $('rev-weight').value.trim() : (rec.weight !== undefined && rec.weight !== null ? String(rec.weight).trim() : '');
+    const weightVal = rawWeight ? parseFloat(rawWeight) : 0;
+
     let calculatedBmi = null;
     if (heightVal > 30 && weightVal > 1) {
       calculatedBmi = parseFloat((weightVal / ((heightVal / 100) * (heightVal / 100))).toFixed(1));
@@ -4014,6 +4188,7 @@ function proceedToPairsScreen() {
       'rev-fam-diabetes', 'rev-fam-hypertension', 'rev-fam-heart', 'rev-fam-thyroid', 'rev-fam-asthma', 'rev-fam-other',
       'rev-pallor', 'rev-icterus', 'rev-cyanosis', 'rev-edema', 'rev-clubbing', 'rev-lymph', 'rev-ecg', 'rev-echo',
       'rev-sys-rs', 'rev-sys-cvs', 'rev-sys-abdomen', 'rev-sys-cns', 'rev-sys-ent', 'rev-sys-skin',
+      'rev-ent-rear', 'rev-ent-lear', 'rev-ent-nose', 'rev-ent-throat',
       'rev-va-right', 'rev-va-left', 'rev-vision-category', 'rev-dental-status', 'rev-dental-advice',
       'rev-referral'
     ];
@@ -4062,7 +4237,7 @@ function proceedToPairsScreen() {
       const handler = (e) => {
         const target = e.target;
         if (target && (target.tagName === 'INPUT' || target.tagName === 'SELECT' || target.tagName === 'TEXTAREA')) {
-          evaluateAndApplyFieldHighlighting();
+          onVitalsChanged();
         }
       };
       reviewScreen.addEventListener('input', handler, true);
@@ -4074,16 +4249,72 @@ function proceedToPairsScreen() {
     const alertsContainer = $('review-clinical-alerts');
     if (!alertsContainer) return;
 
-    const heightVal = parseFloat($('rev-height')?.value || (record && record.height) || 0);
-    const weightVal = parseFloat($('rev-weight')?.value || (record && record.weight) || 0);
-    const ageVal = parseFloat($('rev-age')?.value || (record && record.age) || 0);
-    const bpVal = ($('rev-bp')?.value || (record && record.blood_pressure) || '').trim();
-    const rawGender = ($('rev-gender')?.value || (record && record.gender) || '').trim().toUpperCase();
-    const sexNorm = (rawGender.startsWith('F') || rawGender.startsWith('G') || rawGender.startsWith('W')) ? 'F' : 'M';
-    const atrVal = parseFloat($('rev-atr')?.value || (record && (record.atr || (record.structured_record && record.structured_record.paediatric_growth && record.structured_record.paediatric_growth.atr_degrees))) || 0);
+    // Fall back to activeRecord if record is omitted (Task 1B)
+    const rec = record || state.activeRecord || {};
 
-    let hasAnyAlert = false;
-    const isPaed = (record && record.is_paediatric) || (!isNaN(ageVal) && ageVal > 0 && ageVal < 18);
+    const rawHeight = $('rev-height') ? $('rev-height').value.trim() : (rec.height !== undefined && rec.height !== null ? String(rec.height).trim() : '');
+    const heightVal = rawHeight ? parseFloat(rawHeight) : 0;
+
+    const rawWeight = $('rev-weight') ? $('rev-weight').value.trim() : (rec.weight !== undefined && rec.weight !== null ? String(rec.weight).trim() : '');
+    const weightVal = rawWeight ? parseFloat(rawWeight) : 0;
+
+    const rawAge = $('rev-age') ? $('rev-age').value.trim() : (rec.age !== undefined && rec.age !== null ? String(rec.age).trim() : '');
+    const rawDob = $('rev-dob') ? $('rev-dob').value.trim() : (rec.dob || '');
+    const rawExamDate = $('rev-exam-date') ? $('rev-exam-date').value.trim() : (rec.exam_date || rec.examination_date || '');
+
+    const rawBp = $('rev-bp') ? $('rev-bp').value.trim() : (rec.blood_pressure || '');
+    const bpVal = rawBp || '';
+
+    const rawGender = ($('rev-gender') ? $('rev-gender').value.trim() : (rec.gender || '')).toUpperCase();
+    const sexNorm = (rawGender.startsWith('F') || rawGender.startsWith('G') || rawGender.startsWith('W')) ? 'F' : 'M';
+
+    const rawAtr = $('rev-atr') ? $('rev-atr').value.trim() : (rec.spinal_caliper_atr !== undefined && rec.spinal_caliper_atr !== null ? String(rec.spinal_caliper_atr).trim() : (rec.atr !== undefined && rec.atr !== null ? String(rec.atr).trim() : (rec.structured_record?.paediatric_growth?.atr_degrees || '')));
+    const atrVal = rawAtr ? parseFloat(rawAtr) : 0;
+
+    // If user edited DOB or exam date or age, hide badge and mark verified
+    if ($('rev-dob') && document.activeElement === $('rev-dob')) {
+      rec._datesHumanVerified = true;
+      if ($('badge-dob')) $('badge-dob').style.display = 'none';
+    }
+    if ($('rev-exam-date') && document.activeElement === $('rev-exam-date')) {
+      rec._datesHumanVerified = true;
+      if ($('badge-exam-date')) $('badge-exam-date').style.display = 'none';
+    }
+    if ($('rev-age') && document.activeElement === $('rev-age')) {
+      if ($('badge-age')) $('badge-age').style.display = 'none';
+    }
+
+    // Parse dates and determine completed age
+    const parsedDob = parseClinicalDate(rawDob);
+    const parsedExam = parseClinicalDate(rawExamDate);
+    const isDateAmbiguous = parsedDob.isAmbiguous || parsedExam.isAmbiguous;
+    const isDateLowConfidence = (rec.uncertain_fields || []).some(k => ['dob', 'date_of_birth', 'exam_date', 'examination_date'].includes(k));
+
+    let calcAgeVal = null;
+    if (parsedDob.date && parsedExam.date) {
+      const ageRes = calculateCompletedAge(rawDob, rawExamDate);
+      if (ageRes.age !== null) {
+        calcAgeVal = ageRes.age;
+      }
+    }
+
+    let ageVal = null;
+    let hasAgeDiscrepancy = false;
+    let ageDiscrepancyMsg = '';
+    if (rawAge) {
+      const explicitNum = parseFloat(rawAge);
+      if (!isNaN(explicitNum) && explicitNum > 0) {
+        ageVal = explicitNum;
+        if (calcAgeVal !== null && Math.abs(explicitNum - calcAgeVal) >= 1.0) {
+          hasAgeDiscrepancy = true;
+          ageDiscrepancyMsg = `Demographic Discrepancy: Recorded age (${explicitNum}) differs from calculated age (${calcAgeVal}) from DOB & Exam Date.`;
+        }
+      }
+    } else if (calcAgeVal !== null) {
+      ageVal = calcAgeVal;
+    }
+
+    const isPaed = (rec.is_paediatric) || (ageVal !== null && ageVal < 18) || (rec.target_group === 'paediatric');
 
     // 1. Live BMI Calculation
     const bmiPill = $('rev-calculated-bmi');
@@ -4132,6 +4363,7 @@ function proceedToPairsScreen() {
         bmiPill.textContent = '-- kg/m²';
         bmiPill.style.color = '#0284C7';
         bmiPill.style.background = '#E0F2FE';
+        bmiPill.classList.remove('field-flagged-red');
       }
     }
 
@@ -4140,182 +4372,279 @@ function proceedToPairsScreen() {
     const alertPaediatric = $('alert-paediatric-screening');
     const paedAlertsDesc = $('paediatric-alerts-desc');
     const paedBadge = $('paediatric-alerts-badge');
+    const dateWarningEl = $('paediatric-date-warning');
     let currentPaedAlerts = [];
 
+    if (hasAgeDiscrepancy) {
+      currentPaedAlerts.push(ageDiscrepancyMsg);
+    }
+
     if (isPaed) {
-      // Show Paediatric Card
-      if (paedGrowthCard) {
-        paedGrowthCard.style.display = 'block';
-        const sub = $('paediatric-growth-subtitle');
-        if (sub) {
-          sub.textContent = `Age ${Math.round(ageVal)}y • ${sexNorm === 'F' ? 'Girl' : 'Boy'} Growth Profile`;
+      if (paedGrowthCard) paedGrowthCard.style.display = 'block';
+      if (alertBmi) alertBmi.style.display = 'none';
+
+      const centileBadge = $('paediatric-bmi-centile-badge');
+      const nutCat = $('paediatric-nutrition-category');
+      const prog = $('paediatric-centile-progress');
+      const sub = $('paediatric-growth-subtitle');
+
+      // Date Verification Banner
+      const needsDateVerification = (isDateLowConfidence || isDateAmbiguous) && !rec._datesHumanVerified;
+      if (dateWarningEl) {
+        if (needsDateVerification && ageVal !== null) {
+          dateWarningEl.style.display = 'block';
+        } else {
+          dateWarningEl.style.display = 'none';
         }
       }
 
-      // Hide adult-specific alert cards to avoid contradictory adult staging
-      if (alertBmi) alertBmi.style.display = 'none';
-
-      // A. IAP BMI-for-Age Percentile Evaluation
-      const ageInt = Math.min(18, Math.max(2, Math.round(ageVal)));
-      const lms = IAP_LMS_BMI[sexNorm]?.[ageInt];
-
-      if (calculatedBmi && lms) {
-        const [L, M, S] = lms;
-        let centile = 50;
-        try {
-          const z = (L === 0) ? (Math.log(calculatedBmi / M) / S) : (((Math.pow(calculatedBmi / M, L)) - 1.0) / (L * S));
-          centile = normCdf(z) * 100.0;
-        } catch (e) {
-          centile = 50;
-        }
-        centile = Math.max(0.1, Math.min(99.9, centile));
-
-        const centileBadge = $('paediatric-bmi-centile-badge');
-        const nutCat = $('paediatric-nutrition-category');
-        const prog = $('paediatric-centile-progress');
-
-        if (centileBadge) centileBadge.textContent = `${centile.toFixed(1)}th Centile`;
-        if (prog) prog.style.width = `${centile.toFixed(1)}%`;
-
-        let categoryName = 'Normal Growth';
-        let catColor = '#16A34A';
-
-        if (centile < 3.0) {
-          categoryName = 'Severely Thin (SAM)';
-          catColor = '#DC2626';
-          currentPaedAlerts.push(`BMI Alert [CRITICAL]: Severely Thin (<3rd centile: ${centile.toFixed(1)}th, BMI ${calculatedBmi})`);
-        } else if (centile < 15.0) {
-          categoryName = 'Moderately Thin (MAM)';
-          catColor = '#D97706';
-          currentPaedAlerts.push(`BMI Alert [HIGH]: Moderately Thin (3rd-14.9th centile: ${centile.toFixed(1)}th, BMI ${calculatedBmi})`);
-        } else if (centile < 85.0) {
-          categoryName = 'Normal Weight';
-          catColor = '#16A34A';
-        } else if (centile < 95.0) {
-          categoryName = 'Overweight';
-          catColor = '#EA580C';
-          currentPaedAlerts.push(`BMI Alert [ADVISORY]: Overweight (85th-94.9th centile: ${centile.toFixed(1)}th, BMI ${calculatedBmi})`);
-        } else {
-          categoryName = 'Obese';
-          catColor = '#DC2626';
-          currentPaedAlerts.push(`BMI Alert [HIGH]: Obese (≥95th centile: ${centile.toFixed(1)}th, BMI ${calculatedBmi})`);
-        }
-
+      if (ageVal === null || isNaN(ageVal) || ageVal <= 0) {
+        // Missing Age: DO NOT SILENTLY CLAMP TO 2!
+        if (sub) sub.textContent = 'Age Required • Paediatric Profile Pending';
+        if (centileBadge) centileBadge.textContent = '-- Centile';
+        if (prog) prog.style.width = '0%';
         if (nutCat) {
-          nutCat.textContent = categoryName;
-          nutCat.style.color = catColor;
+          nutCat.textContent = 'Age Required';
+          nutCat.style.color = '#D97706';
         }
+        const stagePill = $('paediatric-bp-stage-pill');
+        if (stagePill) {
+          stagePill.textContent = 'Age Required';
+          stagePill.style.background = '#FFFBEB';
+          stagePill.style.color = '#D97706';
+        }
+        const threshEl = $('paediatric-bp-thresholds');
+        if (threshEl) threshEl.textContent = '--/-- mmHg';
+        const noteEl = $('paediatric-bp-clinical-note');
+        if (noteEl) noteEl.textContent = 'Valid age or Date of Birth with Examination Date required.';
 
         state.lastPaediatricResult = {
           paediatric_calculated_bmi: calculatedBmi,
-          paediatric_bmi_classification: {
-            centile: parseFloat(centile.toFixed(1)),
-            category: categoryName,
-            age_used: ageInt,
-            sex_used: sexNorm
-          }
+          paediatric_bmi_classification: null,
+          paediatric_bp_classification: null
         };
-      }
-
-      // B. Paediatric BP-for-Height Percentile Staging
-      const bpAgeInt = Math.min(17, Math.max(1, Math.round(ageVal)));
-      const bpRefRow = PAED_BP_REF[sexNorm]?.[bpAgeInt];
-      const alertBp = $('alert-hypertension');
-      if (alertBp) alertBp.style.display = 'none'; // Replaced by paediatric card
-
-      if (bpVal && bpRefRow) {
-        const parts = bpVal.replace(/[^0-9/]/g, '').split('/');
-        const sys = parseInt(parts[0], 10);
-        const dia = parts[1] ? parseInt(parts[1], 10) : null;
-        const [p50_sys, p90_sys, p95_sys, p50_dia, p90_dia, p95_dia] = bpRefRow;
-        const p99_sys = p95_sys + 12;
-
-        const threshEl = $('paediatric-bp-thresholds');
-        if (threshEl) threshEl.textContent = `${p90_sys}/${p90_dia} (p90) • ${p95_sys}/${p95_dia} (p95)`;
-
+      } else if (ageVal < 2.0) {
+        // Under 2 years: outside 2-18 range
+        if (sub) sub.textContent = `Age ${ageVal}y • Infant/Toddler Profile (IAP LMS curves apply to 2–18y)`;
+        if (centileBadge) centileBadge.textContent = 'N/A (<2y)';
+        if (prog) prog.style.width = '0%';
+        if (nutCat) {
+          nutCat.textContent = 'Age < 2y (Clinical Review)';
+          nutCat.style.color = '#D97706';
+        }
         const stagePill = $('paediatric-bp-stage-pill');
-        const noteEl = $('paediatric-bp-clinical-note');
+        if (stagePill) {
+          stagePill.textContent = 'N/A (<1y)';
+          stagePill.style.background = '#FFFBEB';
+          stagePill.style.color = '#D97706';
+        }
+        state.lastPaediatricResult = {
+          paediatric_calculated_bmi: calculatedBmi,
+          paediatric_bmi_classification: {
+            centile: null,
+            category: 'Age < 2 (Specialist Review)',
+            age_used: ageVal,
+            sex_used: sexNorm
+          },
+          paediatric_bp_classification: null
+        };
+      } else if (ageVal >= 18.0) {
+        // Adult
+        if (paedGrowthCard) paedGrowthCard.style.display = 'none';
+      } else {
+        // Valid Paediatric Range: 2 <= age < 18
+        if (sub) {
+          sub.textContent = `Age ${Math.round(ageVal)}y • ${sexNorm === 'F' ? 'Girl' : 'Boy'} Growth Profile`;
+        }
+        const ageInt = Math.round(ageVal);
+        const lms = IAP_LMS_BMI[sexNorm]?.[ageInt];
 
-        let stageName = 'Normal BP';
-        let stageBg = '#ECFDF5';
-        let stageColor = '#059669';
-        let noteText = 'Within normal limits for age and height.';
+        if (calculatedBmi && lms) {
+          const [L, M, S] = lms;
+          let centile = 50;
+          try {
+            const z = (L === 0) ? (Math.log(calculatedBmi / M) / S) : (((Math.pow(calculatedBmi / M, L)) - 1.0) / (L * S));
+            centile = normCdf(z) * 100.0;
+          } catch (e) {
+            centile = 50;
+          }
+          centile = Math.max(0.1, Math.min(99.9, centile));
 
-        if (!isNaN(sys)) {
-          if (sys > (p99_sys + 5) || (dia && dia > (p95_dia + 12 + 5))) {
-            stageName = 'Stage 2 HTN';
-            stageBg = '#FEF2F2';
-            stageColor = '#DC2626';
-            noteText = 'Exceeds 99th percentile + 5 mmHg. Urgent medical evaluation indicated.';
-            currentPaedAlerts.push(`BP Alert [CRITICAL]: Stage 2 HTN (${sys}/${dia || '--'} mmHg exceeds p99+5 ref ${p99_sys + 5})`);
-          } else if (sys >= p95_sys || (dia && dia >= p95_dia)) {
-            stageName = 'Stage 1 HTN';
-            stageBg = '#FFF7ED';
-            stageColor = '#EA580C';
-            noteText = 'Exceeds 95th percentile. Paediatrician follow-up recommended.';
-            currentPaedAlerts.push(`BP Alert [HIGH]: Stage 1 HTN (${sys}/${dia || '--'} mmHg exceeds p95 ref ${p95_sys}/${p95_dia})`);
-          } else if (sys >= p90_sys || sys >= 120 || (dia && dia >= p90_dia)) {
-            stageName = 'Elevated BP';
-            stageBg = '#FFFBEB';
-            stageColor = '#D97706';
-            noteText = 'Above 90th percentile for age. Lifestyle counseling indicated.';
-            currentPaedAlerts.push(`BP Alert [ADVISORY]: Elevated BP (${sys}/${dia || '--'} mmHg above 90th percentile)`);
+          if (centileBadge) centileBadge.textContent = `${centile.toFixed(1)}th Centile`;
+          if (prog) prog.style.width = `${centile.toFixed(1)}%`;
+
+          let categoryName = 'Normal Growth';
+          let catColor = '#16A34A';
+
+          if (centile < 3.0) {
+            categoryName = 'Severely Thin (SAM)';
+            catColor = '#DC2626';
+            if (!needsDateVerification) {
+              currentPaedAlerts.push(`BMI Alert [CRITICAL]: Severely Thin (<3rd centile: ${centile.toFixed(1)}th, BMI ${calculatedBmi})`);
+            }
+          } else if (centile < 15.0) {
+            categoryName = 'Moderately Thin (MAM)';
+            catColor = '#D97706';
+            if (!needsDateVerification) {
+              currentPaedAlerts.push(`BMI Alert [HIGH]: Moderately Thin (3rd-14.9th centile: ${centile.toFixed(1)}th, BMI ${calculatedBmi})`);
+            }
+          } else if (centile < 85.0) {
+            categoryName = 'Normal Weight';
+            catColor = '#16A34A';
+          } else if (centile < 95.0) {
+            categoryName = 'Overweight';
+            catColor = '#EA580C';
+            if (!needsDateVerification) {
+              currentPaedAlerts.push(`BMI Alert [ADVISORY]: Overweight (85th-94.9th centile: ${centile.toFixed(1)}th, BMI ${calculatedBmi})`);
+            }
+          } else {
+            categoryName = 'Obese';
+            catColor = '#DC2626';
+            if (!needsDateVerification) {
+              currentPaedAlerts.push(`BMI Alert [HIGH]: Obese (≥95th centile: ${centile.toFixed(1)}th, BMI ${calculatedBmi})`);
+            }
+          }
+
+          if (needsDateVerification) {
+            categoryName = `${categoryName} (Unverified Date)`;
+            catColor = '#D97706';
+          }
+
+          if (nutCat) {
+            nutCat.textContent = categoryName;
+            nutCat.style.color = catColor;
+          }
+
+          state.lastPaediatricResult = {
+            paediatric_calculated_bmi: calculatedBmi,
+            paediatric_bmi_classification: {
+              centile: parseFloat(centile.toFixed(1)),
+              category: categoryName,
+              age_used: ageInt,
+              sex_used: sexNorm,
+              is_definitive: !needsDateVerification
+            }
+          };
+        } else {
+          // Height or weight cleared
+          if (centileBadge) centileBadge.textContent = '-- Centile';
+          if (prog) prog.style.width = '0%';
+          if (nutCat) {
+            nutCat.textContent = calculatedBmi === null ? 'Awaiting Vitals' : 'Growth Calculation Unavailable';
+            nutCat.style.color = '#64748B';
+          }
+          if (state.lastPaediatricResult) {
+            state.lastPaediatricResult.paediatric_calculated_bmi = null;
+            state.lastPaediatricResult.paediatric_bmi_classification = null;
           }
         }
 
-        if (stagePill) {
-          stagePill.textContent = stageName;
-          stagePill.style.background = stageBg;
-          stagePill.style.color = stageColor;
-        }
-        if (noteEl) noteEl.textContent = noteText;
+        // B. Paediatric BP Staging
+        const bpAgeInt = Math.min(17, Math.max(1, Math.round(ageVal)));
+        const bpRefRow = PAED_BP_REF[sexNorm]?.[bpAgeInt];
+        const alertBp = $('alert-hypertension');
+        if (alertBp) alertBp.style.display = 'none';
 
-        if (!state.lastPaediatricResult) state.lastPaediatricResult = {};
-        state.lastPaediatricResult.paediatric_bp_classification = {
-          stage: stageName,
-          reference_p90_sys: p90_sys,
-          reference_p95_sys: p95_sys
-        };
+        if (bpVal && bpRefRow) {
+          const parts = bpVal.replace(/[^0-9/]/g, '').split('/');
+          const sys = parseInt(parts[0], 10);
+          const dia = parts[1] ? parseInt(parts[1], 10) : null;
+          const [p50_sys, p90_sys, p95_sys, p50_dia, p90_dia, p95_dia] = bpRefRow;
+          const p99_sys = p95_sys + 12;
+
+          const threshEl = $('paediatric-bp-thresholds');
+          if (threshEl) threshEl.textContent = `${p90_sys}/${p90_dia} (p90) • ${p95_sys}/${p95_dia} (p95)`;
+
+          const stagePill = $('paediatric-bp-stage-pill');
+          const noteEl = $('paediatric-bp-clinical-note');
+
+          let stageName = 'Normal BP';
+          let stageBg = '#ECFDF5';
+          let stageColor = '#059669';
+          let noteText = 'Within normal limits for age and height.';
+
+          if (!isNaN(sys)) {
+            if (sys > (p99_sys + 5) || (dia && dia > (p95_dia + 12 + 5))) {
+              stageName = 'Stage 2 HTN';
+              stageBg = '#FEF2F2';
+              stageColor = '#DC2626';
+              noteText = 'Exceeds 99th percentile + 5 mmHg. Urgent medical evaluation indicated.';
+              if (!needsDateVerification) {
+                currentPaedAlerts.push(`BP Alert [CRITICAL]: Stage 2 HTN (${sys}/${dia || '--'} mmHg exceeds p99+5 ref ${p99_sys + 5})`);
+              }
+            } else if (sys >= p95_sys || (dia && dia >= p95_dia)) {
+              stageName = 'Stage 1 HTN';
+              stageBg = '#FFF7ED';
+              stageColor = '#EA580C';
+              noteText = 'Exceeds 95th percentile. Paediatrician follow-up recommended.';
+              if (!needsDateVerification) {
+                currentPaedAlerts.push(`BP Alert [HIGH]: Stage 1 HTN (${sys}/${dia || '--'} mmHg exceeds p95 ref ${p95_sys}/${p95_dia})`);
+              }
+            } else if (sys >= p90_sys || sys >= 120 || (dia && dia >= p90_dia)) {
+              stageName = 'Elevated BP';
+              stageBg = '#FFFBEB';
+              stageColor = '#D97706';
+              noteText = 'Above 90th percentile for age. Lifestyle counseling indicated.';
+              if (!needsDateVerification) {
+                currentPaedAlerts.push(`BP Alert [ADVISORY]: Elevated BP (${sys}/${dia || '--'} mmHg above 90th percentile)`);
+              }
+            }
+          }
+
+          if (stagePill) {
+            stagePill.textContent = stageName;
+            stagePill.style.background = stageBg;
+            stagePill.style.color = stageColor;
+          }
+          if (noteEl) noteEl.textContent = noteText;
+
+          if (!state.lastPaediatricResult) state.lastPaediatricResult = {};
+          state.lastPaediatricResult.paediatric_bp_classification = {
+            stage: stageName,
+            reference_p90_sys: p90_sys,
+            reference_p95_sys: p95_sys
+          };
+        } else {
+          const stagePill = $('paediatric-bp-stage-pill');
+          if (stagePill) {
+            stagePill.textContent = 'Normal BP';
+            stagePill.style.background = '#ECFDF5';
+            stagePill.style.color = '#059669';
+          }
+          const threshEl = $('paediatric-bp-thresholds');
+          if (threshEl) threshEl.textContent = '--/-- mmHg';
+          if (state.lastPaediatricResult) {
+            state.lastPaediatricResult.paediatric_bp_classification = null;
+          }
+        }
       }
 
       // C. Adams Forward Bend Test (ATR) Scoliosis Screening
       const atrBadge = $('paediatric-atr-alert-badge');
       if (!isNaN(atrVal) && atrVal >= 5.0) {
-        if (atrBadge) {
-          atrBadge.style.display = 'none';
-        }
+        if (atrBadge) atrBadge.style.display = 'none';
         currentPaedAlerts.push(`Scoliosis Screen [ADVISORY]: ATR ${atrVal}° ≥ 5°`);
       } else if (atrBadge) {
         atrBadge.style.display = 'none';
       }
 
     } else {
-      // Patient is Adult (Age >= 18)
+      // Adult
       if (paedGrowthCard) paedGrowthCard.style.display = 'none';
-
-      // Standard Adult High BMI Alert (suppress banner cards)
       if (alertBmi) alertBmi.style.display = 'none';
-
-      // Standard Adult Hypertension Alert (suppress banner cards)
       const alertBp = $('alert-hypertension');
       if (alertBp) alertBp.style.display = 'none';
     }
 
-    // 3. Missing Essential Fields Warning Card & Input Highlights
+    // Suppress unused card banners
     const alertMissing = $('alert-missing-fields');
     if (alertMissing) alertMissing.style.display = 'none';
-
-    // 4. Clinical Red Flags Alert
     const alertRedFlags = $('alert-red-flags');
     if (alertRedFlags) alertRedFlags.style.display = 'none';
-
-    // 5. Render Paediatric Screening Alerts Banner
     if (alertPaediatric) alertPaediatric.style.display = 'none';
-
-    // Suppress main clinical alert container per requirement
     alertsContainer.style.display = 'none';
 
-    // Apply red visual highlighting to flagged/irregular input fields
+    // Apply highlighting
     evaluateAndApplyFieldHighlighting(record);
   }
 
@@ -4332,6 +4661,10 @@ function proceedToPairsScreen() {
     if ($('rev-sys-cvs')) $('rev-sys-cvs').value = 'S1 S2 heard, normal rhythm, no murmurs (NAD)';
     if ($('rev-sys-abdomen')) $('rev-sys-abdomen').value = 'Soft, non-tender, no organomegaly (NAD)';
     if ($('rev-sys-cns')) $('rev-sys-cns').value = 'Conscious, oriented, normal reflexes (NAD)';
+    if ($('rev-ent-rear')) $('rev-ent-rear').value = 'Normal (NAD)';
+    if ($('rev-ent-lear')) $('rev-ent-lear').value = 'Normal (NAD)';
+    if ($('rev-ent-nose')) $('rev-ent-nose').value = 'Normal (NAD)';
+    if ($('rev-ent-throat')) $('rev-ent-throat').value = 'Normal (NAD)';
     if ($('rev-sys-ent')) $('rev-sys-ent').value = 'Normal (NAD)';
     if ($('rev-sys-skin')) $('rev-sys-skin').value = 'Normal, no active dermatological lesions (NAD)';
 
@@ -4373,6 +4706,7 @@ function proceedToPairsScreen() {
     if ($('rev-dob')) base.personal_information.dob = $('rev-dob').value.trim();
     if ($('rev-doc-id')) base.personal_information.doc_id = $('rev-doc-id').value.trim();
     if ($('rev-adm-id')) base.personal_information.admission_id = $('rev-adm-id').value.trim();
+    if ($('rev-class-and-section')) base.personal_information.class_and_section = $('rev-class-and-section').value.trim();
     if ($('rev-school')) base.personal_information.school_college_name = $('rev-school').value.trim();
     if ($('rev-mobile')) base.personal_information.mobile_number = $('rev-mobile').value.trim();
     if ($('rev-address')) base.personal_information.address = $('rev-address').value.trim();
@@ -4419,6 +4753,10 @@ function proceedToPairsScreen() {
     if ($('rev-sys-cvs')) base.system_examination.cardiovascular_system = $('rev-sys-cvs').value.trim();
     if ($('rev-sys-abdomen')) base.system_examination.abdomen = $('rev-sys-abdomen').value.trim();
     if ($('rev-sys-cns')) base.system_examination.central_nervous_system = $('rev-sys-cns').value.trim();
+    if ($('rev-ent-rear')) base.system_examination.otoscope_right_ear = $('rev-ent-rear').value.trim();
+    if ($('rev-ent-lear')) base.system_examination.otoscope_left_ear = $('rev-ent-lear').value.trim();
+    if ($('rev-ent-nose')) base.system_examination.sys_nose = $('rev-ent-nose').value.trim();
+    if ($('rev-ent-throat')) base.system_examination.sys_throat = $('rev-ent-throat').value.trim();
     if ($('rev-sys-ent')) {
       base.system_examination.ear = $('rev-sys-ent').value.trim();
       base.system_examination.ent = $('rev-sys-ent').value.trim();
@@ -4511,6 +4849,17 @@ function proceedToPairsScreen() {
       if (btn) btn.classList.toggle('active', k === tabKey);
       if (sec) sec.classList.toggle('active', k === tabKey);
     });
+
+    // Requirement 3: Combine Section 3 (Health Assessment) and Section 4 (Systemic Examination)
+    if (tabKey === 'health' || tabKey === 'system') {
+      if ($('rsec-health')) $('rsec-health').classList.add('active');
+      if ($('rsec-system')) $('rsec-system').classList.add('active');
+      if ($('rtab-health')) $('rtab-health').classList.add('active');
+      if (tabKey === 'system' && $('rsec-system')) {
+        $('rsec-system').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
     if (tabKey === 'referral') {
       setTimeout(() => initSignaturePad(), 50);
     }
@@ -4572,6 +4921,11 @@ function proceedToPairsScreen() {
         blood_pressure: dynBP || $('rev-bp')?.value.trim() || state.activeRecord.blood_pressure,
         dob: $('rev-dob') ? $('rev-dob').value.trim() : (state.activeRecord.dob || ''),
         blood_group: $('rev-blood-group') ? $('rev-blood-group').value.trim() : (state.activeRecord.blood_group || ''),
+        class_and_section: $('rev-class-and-section') ? $('rev-class-and-section').value.trim() : (state.activeRecord.class_and_section || ''),
+        otoscope_right_ear: $('rev-ent-rear') ? $('rev-ent-rear').value.trim() : (state.activeRecord.otoscope_right_ear || ''),
+        otoscope_left_ear: $('rev-ent-lear') ? $('rev-ent-lear').value.trim() : (state.activeRecord.otoscope_left_ear || ''),
+        sys_nose: $('rev-ent-nose') ? $('rev-ent-nose').value.trim() : (state.activeRecord.sys_nose || ''),
+        sys_throat: $('rev-ent-throat') ? $('rev-ent-throat').value.trim() : (state.activeRecord.sys_throat || ''),
         examination_details: (state.activeRecord?.examination_details && !state.activeRecord.examination_details.startsWith('BMI:')) ? state.activeRecord.examination_details : (state.activeRecord?.examination_details || 'Clinical screening recorded.'),
         referral_details: $('rev-referral')?.value.trim() || state.activeRecord.referral_details,
         reviewer_notes: $('rev-doctor-notes')?.value.trim() || 'Verified and approved.',
@@ -4635,6 +4989,11 @@ function proceedToPairsScreen() {
         blood_pressure: dynBP || $('rev-bp')?.value.trim() || state.activeRecord.blood_pressure,
         dob: $('rev-dob') ? $('rev-dob').value.trim() : (state.activeRecord.dob || ''),
         blood_group: $('rev-blood-group') ? $('rev-blood-group').value.trim() : (state.activeRecord.blood_group || ''),
+        class_and_section: $('rev-class-and-section') ? $('rev-class-and-section').value.trim() : (state.activeRecord.class_and_section || ''),
+        otoscope_right_ear: $('rev-ent-rear') ? $('rev-ent-rear').value.trim() : (state.activeRecord.otoscope_right_ear || ''),
+        otoscope_left_ear: $('rev-ent-lear') ? $('rev-ent-lear').value.trim() : (state.activeRecord.otoscope_left_ear || ''),
+        sys_nose: $('rev-ent-nose') ? $('rev-ent-nose').value.trim() : (state.activeRecord.sys_nose || ''),
+        sys_throat: $('rev-ent-throat') ? $('rev-ent-throat').value.trim() : (state.activeRecord.sys_throat || ''),
         examination_details: (state.activeRecord?.examination_details && !state.activeRecord.examination_details.startsWith('BMI:')) ? state.activeRecord.examination_details : (state.activeRecord?.examination_details || 'Clinical screening recorded.'),
         referral_details: $('rev-referral')?.value.trim() || state.activeRecord.referral_details,
         reviewer_notes: $('rev-doctor-notes')?.value.trim() || 'Draft review saved.',
@@ -6332,11 +6691,14 @@ function proceedToPairsScreen() {
     approveAndSaveRecord,
     saveDraftReview,
     onVitalsChanged,
+    updateAssessmentVitalsSummary,
     onConsentChanged,
     isFieldAbnormal,
     evaluateAndApplyFieldHighlighting,
     attachReviewFieldEventListeners,
     updateReviewClinicalAlerts,
+    parseClinicalDate,
+    calculateCompletedAge,
     markPhysicalExamNormal,
     showMissingConfirmationModal,
     closeMissingConfirmModal,

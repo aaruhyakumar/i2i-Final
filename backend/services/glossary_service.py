@@ -271,16 +271,106 @@ class ClinicalGlossaryService:
         )
         if is_gender_context:
             resolved_gender = None
+            gender_status = None
+            rule_applied = None
             gender_map = SCOPED_DISAMBIGUATION.get("gender", {})
-            if raw_lower in gender_map:
+
+            # Check for pure empty printed checkbox outline
+            if raw_lower in ("[ ]", "[  ]", "( )", "(  )", "[]", "()"):
+                return {
+                    "raw_text": raw,
+                    "normalized": "",
+                    "is_expanded": False,
+                    "scope_used": "gender",
+                    "rule_applied": "empty_checkbox_outline",
+                    "status": "unmarked_checkbox"
+                }
+
+            # 1. Multi-box prefix pattern: e.g. [ ] M  [x] F
+            prefix_pattern = r'\[\s*([xX✓✔*+]?)\s*\]\s*(m|male|boy|man|f|female|girl|woman)\b'
+            prefix_matches = re.findall(prefix_pattern, raw_lower)
+            if len(prefix_matches) >= 2:
+                marks = {g: (mark.strip() != '') for mark, g in prefix_matches}
+                m_marked = any(marks.get(k, False) for k in ('m', 'male', 'boy', 'man'))
+                f_marked = any(marks.get(k, False) for k in ('f', 'female', 'girl', 'woman'))
+                if m_marked and f_marked:
+                    return {
+                        "raw_text": raw,
+                        "normalized": raw,
+                        "is_expanded": False,
+                        "scope_used": "gender",
+                        "rule_applied": "ambiguous_conflicting_checkboxes",
+                        "status": "ambiguous_gender"
+                    }
+                elif m_marked:
+                    resolved_gender = "Male"
+                    rule_applied = "gender_prefix_checkbox_male"
+                    gender_status = "scoped_expansion"
+                elif f_marked:
+                    resolved_gender = "Female"
+                    rule_applied = "gender_prefix_checkbox_female"
+                    gender_status = "scoped_expansion"
+                else:
+                    return {
+                        "raw_text": raw,
+                        "normalized": "",
+                        "is_expanded": False,
+                        "scope_used": "gender",
+                        "rule_applied": "unmarked_dual_checkboxes",
+                        "status": "unmarked_checkbox"
+                    }
+
+            # 2. Multi-box suffix pattern: e.g. M [ ]  F [x]
+            if not resolved_gender:
+                suffix_pattern = r'\b(m|male|boy|man|f|female|girl|woman)\s*\[\s*([xX✓✔*+]?)\s*\]'
+                suffix_matches = re.findall(suffix_pattern, raw_lower)
+                if len(suffix_matches) >= 2:
+                    marks = {g: (mark.strip() != '') for g, mark in suffix_matches}
+                    m_marked = any(marks.get(k, False) for k in ('m', 'male', 'boy', 'man'))
+                    f_marked = any(marks.get(k, False) for k in ('f', 'female', 'girl', 'woman'))
+                    if m_marked and f_marked:
+                        return {
+                            "raw_text": raw,
+                            "normalized": raw,
+                            "is_expanded": False,
+                            "scope_used": "gender",
+                            "rule_applied": "ambiguous_conflicting_checkboxes",
+                            "status": "ambiguous_gender"
+                        }
+                    elif m_marked:
+                        resolved_gender = "Male"
+                        rule_applied = "gender_suffix_checkbox_male"
+                        gender_status = "scoped_expansion"
+                    elif f_marked:
+                        resolved_gender = "Female"
+                        rule_applied = "gender_suffix_checkbox_female"
+                        gender_status = "scoped_expansion"
+                    else:
+                        return {
+                            "raw_text": raw,
+                            "normalized": "",
+                            "is_expanded": False,
+                            "scope_used": "gender",
+                            "rule_applied": "unmarked_dual_checkboxes",
+                            "status": "unmarked_checkbox"
+                        }
+
+            # 3. Direct dictionary match
+            if not resolved_gender and raw_lower in gender_map:
                 resolved_gender = gender_map[raw_lower]
-            else:
-                m_box = re.match(r'^(?:\[[xX✓✔\s*]\]|\([xX✓✔\s*]\)|[✓✔☑])\s*(f|female|fem|girl|woman|m|male|boy|man|o|other)$', raw_lower)
+                rule_applied = f"gender_exact_{resolved_gender.lower()}"
+                gender_status = "exact" if raw == resolved_gender else "scoped_expansion"
+
+            # 4. Single token with tick/check/cross prefix or suffix
+            if not resolved_gender:
+                m_box = re.match(r'^(?:\[\s*[xX✓✔*+]\s*\]|\(\s*[xX✓✔*+]\s*\)|[✓✔☑])\s*(f|female|fem|girl|woman|m|male|boy|man|o|other)$', raw_lower)
                 if not m_box:
-                    m_box = re.match(r'^(f|female|fem|girl|woman|m|male|boy|man|o|other)\s*(?:\[[xX✓✔\s*]\]|\([xX✓✔\s*]\)|[✓✔☑])$', raw_lower)
+                    m_box = re.match(r'^(f|female|fem|girl|woman|m|male|boy|man|o|other)\s*(?:\[\s*[xX✓✔*+]\s*\]|\(\s*[xX✓✔*+]\s*\)|[✓✔☑])$', raw_lower)
                 if m_box:
                     token = m_box.group(1)
                     resolved_gender = gender_map.get(token)
+                    rule_applied = f"gender_box_{resolved_gender.lower()}"
+                    gender_status = "scoped_expansion"
 
             if resolved_gender:
                 return {
@@ -288,8 +378,8 @@ class ClinicalGlossaryService:
                     "normalized": resolved_gender,
                     "is_expanded": (raw != resolved_gender),
                     "scope_used": "gender",
-                    "rule_applied": f"gender_{raw_lower}_{resolved_gender.lower()}",
-                    "status": "exact" if raw == resolved_gender else "scoped_expansion"
+                    "rule_applied": rule_applied or f"gender_{raw_lower}_{resolved_gender.lower()}",
+                    "status": gender_status or ("exact" if raw == resolved_gender else "scoped_expansion")
                 }
 
             # Unrecognized or ambiguous in gender context: preserve raw, flag new_term, never fall through to doctor short forms

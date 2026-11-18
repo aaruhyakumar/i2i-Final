@@ -91,6 +91,48 @@ def eval_in_webview(js_code: str) -> dict:
     except Exception:
         return {"raw": result}
 
+def capture_screenshot(file_path: str) -> bool:
+    page = get_page_info()
+    path = page["webSocketDebuggerUrl"].split("127.0.0.1:9222")[1]
+    
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.connect(("127.0.0.1", 9222))
+    
+    handshake = (
+        f"GET {path} HTTP/1.1\r\n"
+        f"Host: 127.0.0.1:9222\r\n"
+        f"Upgrade: websocket\r\n"
+        f"Connection: Upgrade\r\n"
+        f"Sec-WebSocket-Key: {base64.b64encode(os.urandom(16)).decode()}\r\n"
+        f"Sec-WebSocket-Version: 13\r\n\r\n"
+    )
+    sock.sendall(handshake.encode("utf-8"))
+    resp = b""
+    while b"\r\n\r\n" not in resp:
+        resp += sock.recv(1024)
+        
+    req = {
+        "id": 2,
+        "method": "Page.captureScreenshot",
+        "params": {"format": "png"}
+    }
+    sock.sendall(create_ws_frame(json.dumps(req)))
+    result = recv_ws_frame(sock)
+    sock.close()
+    try:
+        data = json.loads(result)
+        img_b64 = data.get("result", {}).get("data")
+        if img_b64:
+            d = os.path.dirname(file_path)
+            if d:
+                os.makedirs(d, exist_ok=True)
+            with open(file_path, "wb") as f:
+                f.write(base64.b64decode(img_b64))
+            return True
+    except Exception as e:
+        print("capture_screenshot error:", e)
+    return False
+
 if __name__ == "__main__":
     res = eval_in_webview("document.title + ' | screen: ' + (window.state?.currentScreen || 'none')")
     print("Result:", res)

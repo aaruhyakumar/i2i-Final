@@ -1198,7 +1198,7 @@
 
           <div class="form-grid">
             <div>
-              <label for="rev-age">Age</label>
+              <label for="rev-age">Age <span class="field-badge-warn" id="badge-age" style="display:none;">Check value</span></label>
               <input id="rev-age" placeholder="Age" oninput="window.app.onVitalsChanged()">
             </div>
             <div>
@@ -1213,23 +1213,45 @@
 
           <div class="form-grid">
             <div>
-              <label for="rev-blood-group">Blood Group</label>
-              <input id="rev-blood-group" placeholder="Blood Group (A+, B+, O+, etc.)">
+              <label for="rev-dob">Date of Birth <span class="field-badge-warn" id="badge-dob" style="display:none;">Check value</span></label>
+              <input id="rev-dob" placeholder="DD/MM/YYYY" oninput="window.app.onVitalsChanged()">
+              <div class="crop-snippet-preview" id="crop-preview-dob" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
+                <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
+                <canvas id="crop-canvas-dob" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
+              </div>
             </div>
             <div>
-              <label for="rev-dob">Date of Birth</label>
-              <input id="rev-dob" placeholder="DD/MM/YYYY">
+              <label for="rev-exam-date">Date of Examination <span class="field-badge-warn" id="badge-exam-date" style="display:none;">Check value</span></label>
+              <input id="rev-exam-date" placeholder="DD/MM/YYYY" oninput="window.app.onVitalsChanged()">
+              <div class="crop-snippet-preview" id="crop-preview-exam-date" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
+                <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
+                <canvas id="crop-canvas-exam-date" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
+              </div>
             </div>
           </div>
 
           <div class="form-grid">
             <div>
+              <label for="rev-blood-group">Blood Group</label>
+              <input id="rev-blood-group" placeholder="Blood Group (A+, B+, O+, etc.)">
+            </div>
+            <div>
               <label for="rev-doc-id">Document ID</label>
               <input id="rev-doc-id" placeholder="DOC-XXXX">
             </div>
+          </div>
+          <div class="form-grid">
             <div>
               <label for="rev-adm-id">Admission / Roll ID</label>
               <input id="rev-adm-id" placeholder="ADM-XXXX">
+            </div>
+            <div>
+              <label for="rev-class-and-section">Class & Section <span class="field-badge-warn" id="badge-class-and-section" style="display:none;">Check value</span></label>
+              <input id="rev-class-and-section" placeholder="e.g. 5-B / Class 5">
+              <div class="crop-snippet-preview" id="crop-preview-class-and-section" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
+                <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
+                <canvas id="crop-canvas-class-and-section" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
+              </div>
             </div>
           </div>
 
@@ -1279,6 +1301,11 @@
                 </div>
               </div>
               <span class="tag" id="paediatric-status-pill" style="background:#7C3AED; color:#ffffff; font-size:11px; font-weight:700;">Paediatric Mode</span>
+            </div>
+
+            <!-- Verification Warning Banner -->
+            <div id="paediatric-date-warning" style="display:none; margin-top:8px; margin-bottom:8px; background:#FFFBEB; border:1px solid #FCD34D; border-radius:8px; padding:6px 10px; font-size:11px; color:#92400E; font-weight:600;">
+              ⚠️ Verification Required: Date of Birth or Examination Date has low extraction confidence or ambiguous format. Please confirm to verify growth percentiles.
             </div>
 
             <!-- Grid: BMI Percentile & BP Percentile -->
@@ -1412,6 +1439,40 @@
 
         <!-- Section 4: Health Assessment -->
         <div class="review-section" id="rsec-health">
+          <!-- Vitals & Anthropometrics Summary in Assessment -->
+          <div id="assessment-vitals-summary-card" style="background:#F8FAFC; border:1.5px solid #CBD5E1; border-radius:10px; padding:10px 12px; margin-bottom:14px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+              <span style="font-size:11.5px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.5px;">📊 Key Vitals & Anthropometrics</span>
+              <span id="assessment-vitals-status-pill" class="tag" style="font-size:10.5px; background:#E2E8F0; color:#475569;">Live Assessment</span>
+            </div>
+            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:6px;">
+              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">HEIGHT</small>
+                <b id="summary-vital-height" style="font-size:12.5px; color:#0F172A;">-- cm</b>
+              </div>
+              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">WEIGHT</small>
+                <b id="summary-vital-weight" style="font-size:12.5px; color:#0F172A;">-- kg</b>
+              </div>
+              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">BMI</small>
+                <b id="summary-vital-bmi" style="font-size:12.5px; color:#0F172A;">-- kg/m²</b>
+              </div>
+              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">BP</small>
+                <b id="summary-vital-bp" style="font-size:12.5px; color:#0F172A;">--/-- mmHg</b>
+              </div>
+              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">PULSE</small>
+                <b id="summary-vital-pulse" style="font-size:12.5px; color:#0F172A;">-- bpm</b>
+              </div>
+              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
+                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">ATR</small>
+                <b id="summary-vital-atr" style="font-size:12.5px; color:#0F172A;">--°</b>
+              </div>
+            </div>
+          </div>
+
           <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
             <button type="button" class="btn ghost" style="width:auto; padding:6px 14px; font-size:12px; font-weight:700; color:#059669; border-color:#10B981; background:#ECFDF5;" onclick="window.app.markPhysicalExamNormal()">
               ✨ Quick-Fill Physical Exam as Normal (NAD)
@@ -1476,8 +1537,27 @@
           <label for="rev-sys-cns">Central Nervous System (CNS)</label>
           <input id="rev-sys-cns" placeholder="Conscious, oriented, normal">
 
-          <label for="rev-sys-ent">Ear, Nose, Throat</label>
-          <input id="rev-sys-ent" placeholder="Normal">
+          <input type="hidden" id="rev-sys-ent">
+          <div class="form-grid">
+            <div>
+              <label for="rev-ent-rear">Otoscopy Right Ear <span class="field-badge-warn" id="badge-ent-rear" style="display:none;">Check value</span></label>
+              <input id="rev-ent-rear" placeholder="Not Recorded" oninput="window.app.onVitalsChanged()">
+            </div>
+            <div>
+              <label for="rev-ent-lear">Otoscopy Left Ear <span class="field-badge-warn" id="badge-ent-lear" style="display:none;">Check value</span></label>
+              <input id="rev-ent-lear" placeholder="Not Recorded" oninput="window.app.onVitalsChanged()">
+            </div>
+          </div>
+          <div class="form-grid">
+            <div>
+              <label for="rev-ent-nose">Nose <span class="field-badge-warn" id="badge-ent-nose" style="display:none;">Check value</span></label>
+              <input id="rev-ent-nose" placeholder="Not Recorded" oninput="window.app.onVitalsChanged()">
+            </div>
+            <div>
+              <label for="rev-ent-throat">Throat <span class="field-badge-warn" id="badge-ent-throat" style="display:none;">Check value</span></label>
+              <input id="rev-ent-throat" placeholder="Not Recorded" oninput="window.app.onVitalsChanged()">
+            </div>
+          </div>
 
           <label for="rev-sys-skin">Skin & Hair</label>
           <input id="rev-sys-skin" placeholder="Normal">

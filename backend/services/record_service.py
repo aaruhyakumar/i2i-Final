@@ -1281,7 +1281,7 @@ class RecordService:
         if val is None:
             return False
         val_str = str(val).strip()
-        if not val_str or val_str.lower() in ("none", "nil", "n/a", "na", "-", "--", "missing", "unassessed", "not assessed"):
+        if not val_str or val_str.lower() in ("none", "nil", "n/a", "na", "-", "--", "missing", "unassessed", "not assessed", "not recorded"):
             return False
 
         low = val_str.lower()
@@ -1671,6 +1671,54 @@ class RecordService:
                 "reviewed_by": r.get("reviewed_by") or "",
                 "reviewed_at": r.get("reviewed_at") or ""
             }
+
+            # 1. Fallback BMI resolution (from examination_details or height & weight)
+            bmi_val = row_dict.get("bmi")
+            if not bmi_val or str(bmi_val).strip() in ("", "-", "None", "null", "undefined"):
+                exam_det = str(r.get("examination_details") or "")
+                m_bmi = re.search(r'BMI:\s*([\d.]+)', exam_det, re.IGNORECASE)
+                if m_bmi:
+                    row_dict["bmi"] = m_bmi.group(1)
+                else:
+                    try:
+                        h_f = float(str(row_dict.get("height", "")).strip())
+                        w_f = float(str(row_dict.get("weight", "")).strip())
+                        if h_f > 0 and w_f > 0:
+                            row_dict["bmi"] = str(round(w_f / ((h_f / 100.0) ** 2), 1))
+                    except (ValueError, TypeError):
+                        pass
+
+            # 2. ENT findings normalization (Blank -> "Not Recorded", Unclear -> "Needs Review", text preserved)
+            def _clean_ent_val(val: Any) -> str:
+                if val is None or str(val).strip() in ("", "-", "--", "None", "null"):
+                    return "Not Recorded"
+                s = str(val).strip()
+                s_low = s.lower()
+                if s_low in ("unclear", "needs review", "ambiguous", "?", "???"):
+                    return "Needs Review"
+                if s_low in ("normal", "nad", "wnl", "clear", "intact"):
+                    return "Normal"
+                if s_low in ("abnormal", "abn"):
+                    return "Abnormal"
+                return s
+
+            row_dict["otoscope_right_ear"] = _clean_ent_val(row_dict.get("otoscope_right_ear"))
+            row_dict["otoscope_left_ear"] = _clean_ent_val(row_dict.get("otoscope_left_ear"))
+            row_dict["sys_nose"] = _clean_ent_val(row_dict.get("sys_nose"))
+            row_dict["sys_throat"] = _clean_ent_val(row_dict.get("sys_throat"))
+
+            # 3. Systemic examination: ensure Abdomen & CNS are preserved in sys_other_systems if entered
+            abd_val = _get_val(r, "abdomen", "sys_abdomen", ["systemic_examination", "abdomen"])
+            cns_val = _get_val(r, "cns", "sys_cns", ["systemic_examination", "central_nervous_system"])
+            if (abd_val or cns_val) and (not row_dict["sys_other_systems"] or row_dict["sys_other_systems"] in ("Normal", "NAD")):
+                sys_parts = []
+                if row_dict["sys_other_systems"]:
+                    sys_parts.append(row_dict["sys_other_systems"])
+                if abd_val:
+                    sys_parts.append(f"Abdomen: {abd_val}")
+                if cns_val:
+                    sys_parts.append(f"CNS: {cns_val}")
+                row_dict["sys_other_systems"] = "; ".join(sys_parts)
 
             # Evaluate clinical screening using existing engine
             screening_fields = {

@@ -70,3 +70,5 @@ scratch/
 scratch_*
 mobile_expo_backup_20261116/
 *.xml
+*.apk
+
