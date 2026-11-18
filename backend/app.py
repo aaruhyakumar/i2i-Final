@@ -994,19 +994,24 @@ def create_app(db_path: Optional[str] = None) -> Flask:
                 "code": "MISSING_TENANT_IDENTITY"
             }), 403
 
-        if is_supabase_enabled():
-            camps = supabase_service.list_camps_with_stats()
-            if camps is not None:
-                filtered = [c for c in camps if get_resource_community(c) in caller_comms]
-                demo_mode_active = os.getenv("DEMO_MODE", "0").lower() in ("1", "true")
-                app_env = os.getenv("APP_ENV", "production").strip().lower()
-                is_dev_env = demo_mode_active or (app_env not in ("production", "prod"))
-                if filtered or not is_dev_env:
-                    return jsonify(filtered)
+        local_camps = database.list_camps_with_stats(db_path) or []
+        local_filtered = [c for c in local_camps if get_resource_community(c) in caller_comms]
 
-        all_camps = database.list_camps_with_stats(db_path)
-        filtered = [c for c in all_camps if get_resource_community(c) in caller_comms]
-        return jsonify(filtered)
+        if is_supabase_enabled():
+            try:
+                camps = supabase_service.list_camps_with_stats()
+                if camps is not None:
+                    sup_filtered = [c for c in camps if get_resource_community(c) in caller_comms]
+                    # Merge local camps with Supabase camps (local wins for newly created camps)
+                    merged = {c["id"]: c for c in sup_filtered if c.get("id")}
+                    for lc in local_filtered:
+                        if lc.get("id"):
+                            merged[lc["id"]] = lc
+                    return jsonify(list(merged.values()))
+            except Exception as e:
+                logger.warning("Supabase list_camps notice: %s", e)
+
+        return jsonify(local_filtered)
 
     @app.route("/api/camps", methods=["POST"])
     def add_camp():
@@ -1055,44 +1060,38 @@ def create_app(db_path: Optional[str] = None) -> Flask:
         created_by_uuid = str(user_id) if is_valid_uuid(user_id) else None
         created_by_display = getattr(g, 'current_user', {}).get("name") or str(user_id or 'demo_user')
 
-        camp = None
-        if is_supabase_enabled() and is_valid_uuid(community_id):
-            try:
-                camp = supabase_service.create_camp(
-                    name=name,
-                    expected_records=expected,
-                    date_str=date_str,
-                    location=location,
-                    target_group=target_group,
-                    community_id=community_id,
-                    created_by=created_by_uuid
-                )
-            except Exception as e:
-                logger.warning("Failed to create camp in Supabase: %s; falling back to SQLite", e)
-                camp = None
+        import uuid
+        camp_uuid = str(uuid.uuid4())
 
-        if not camp:
-            camp = database.create_camp(
-                name, expected, date_str,
-                location=location,
-                created_by=created_by_display,
-                target_group=target_group,
-                community_id=community_id,
-                db_path=db_path
-            )
-        else:
-            try:
-                database.create_camp(
-                    name, expected, date_str,
-                    location=location,
-                    created_by=created_by_display,
-                    camp_id=camp.get("id"),
-                    target_group=target_group,
-                    community_id=community_id,
-                    db_path=db_path
-                )
-            except Exception as db_err:
-                logger.warning("Local camp mirror warning: %s", db_err)
+        # 1. Local-First: Create immediately in local SQLite (< 1 ms)
+        camp = database.create_camp(
+            name, expected, date_str,
+            location=location,
+            created_by=created_by_display,
+            camp_id=camp_uuid,
+            target_group=target_group,
+            community_id=community_id,
+            db_path=db_path
+        )
+
+        # 2. Asynchronous Sync: Sync camp to Supabase in a background thread
+        if is_supabase_enabled() and is_valid_uuid(community_id):
+            def _bg_create_camp(c_uuid):
+                try:
+                    supabase_service.create_camp(
+                        name=name,
+                        expected_records=expected,
+                        date_str=date_str,
+                        location=location,
+                        target_group=target_group,
+                        community_id=community_id,
+                        created_by=created_by_uuid,
+                        camp_id=c_uuid
+                    )
+                except Exception as s_err:
+                    logger.warning("Background Supabase camp creation notice: %s", s_err)
+
+            threading.Thread(target=_bg_create_camp, args=(camp_uuid,), daemon=True).start()
 
         return jsonify(camp), 201
 
