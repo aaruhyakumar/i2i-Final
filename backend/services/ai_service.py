@@ -613,8 +613,8 @@ def apply_server_side_flags(fields: Dict[str, List[Any]]) -> Dict[str, Any]:
         "calculated_bmi": calculated_bmi,
         "bmi_classification": bmi_classification,
         "bp_classification": bp_classification,
-        # Paediatric-specific
-        "is_paediatric": paediatric_result["is_paediatric"],
+        # Paediatric-specific (Ink2Insights is exclusively paediatric screening)
+        "is_paediatric": True,
         "paediatric_bmi_classification": paediatric_result["paediatric_bmi_classification"],
         "paediatric_bp_classification": paediatric_result["paediatric_bp_classification"],
         "atr_classification": paediatric_result["atr_classification"],
@@ -939,7 +939,8 @@ def validate_and_sanitize_extraction(raw_payload: Any) -> Dict[str, Any]:
         "bmi_classification": flags_meta.get("bmi_classification", {}),
         "bp_classification": flags_meta.get("bp_classification", {}),
         # Paediatric screening (IAP percentiles, ATR)
-        "is_paediatric": flags_meta.get("is_paediatric", False),
+        "is_paediatric": 1,
+        "target_group": "paediatric",
         "paediatric_bmi_classification": flags_meta.get("paediatric_bmi_classification", {}),
         "paediatric_bp_classification": flags_meta.get("paediatric_bp_classification", {}),
         "atr_classification": flags_meta.get("atr_classification", {}),

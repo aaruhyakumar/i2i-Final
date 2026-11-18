@@ -4219,7 +4219,7 @@ function proceedToPairsScreen() {
 
     const rawGender = ($('rev-gender') ? $('rev-gender').value.trim() : (rec.gender || '')).toUpperCase();
     const sexNorm = (rawGender.startsWith('F') || rawGender.startsWith('G') || rawGender.startsWith('W')) ? 'F' : 'M';
-    const isPaed = (rec.is_paediatric) || (ageVal !== null && ageVal > 0 && ageVal < 18) || (rec.target_group === 'paediatric');
+    const isPaed = true; // Every screening record in Ink2Insights is school health screening
 
     const rawHeight = $('rev-height') ? $('rev-height').value.trim() : (rec.height !== undefined && rec.height !== null ? String(rec.height).trim() : '');
     const heightVal = rawHeight ? parseFloat(rawHeight) : 0;
@@ -4366,7 +4366,7 @@ function proceedToPairsScreen() {
       ageVal = calcAgeVal;
     }
 
-    const isPaed = (rec.is_paediatric) || (ageVal !== null && ageVal < 18) || (rec.target_group === 'paediatric');
+    const isPaed = true; // Every screening record in Ink2Insights is school health screening
 
     // 1. Live BMI Calculation
     const bmiPill = $('rev-calculated-bmi');
@@ -4501,8 +4501,72 @@ function proceedToPairsScreen() {
           paediatric_bp_classification: null
         };
       } else if (ageVal >= 18.0) {
-        // Adult
-        if (paedGrowthCard) paedGrowthCard.style.display = 'none';
+        if (sub) {
+          sub.textContent = `Age ${Math.round(ageVal)}y • ${sexNorm === 'F' ? 'Girl' : 'Boy'} Growth Profile (Senior)`;
+        }
+        const ageInt = 18;
+        const lms = IAP_LMS_BMI[sexNorm]?.[ageInt];
+        if (calculatedBmi && lms) {
+          const [L, M, S] = lms;
+          let centile = 50;
+          try {
+            const z = (L === 0) ? (Math.log(calculatedBmi / M) / S) : (((Math.pow(calculatedBmi / M, L)) - 1.0) / (L * S));
+            centile = normCdf(z) * 100.0;
+          } catch (e) {
+            centile = 50;
+          }
+          centile = Math.max(0.1, Math.min(99.9, centile));
+          if (centileBadge) centileBadge.textContent = `${centile.toFixed(1)}th Centile`;
+          if (prog) prog.style.width = `${centile.toFixed(1)}%`;
+          let categoryName = 'Normal Growth';
+          let catColor = '#16A34A';
+          if (centile < 3.0) {
+            categoryName = 'Severe Thinness (SAM)';
+            catColor = '#DC2626';
+          } else if (centile < 15.0) {
+            categoryName = 'Thinness (MAM)';
+            catColor = '#D97706';
+          } else if (centile >= 95.0) {
+            categoryName = 'Obesity (≥95th)';
+            catColor = '#DC2626';
+          } else if (centile >= 85.0) {
+            categoryName = 'Overweight (85th–95th)';
+            catColor = '#EA580C';
+          }
+          if (nutCat) {
+            nutCat.textContent = categoryName;
+            nutCat.style.color = catColor;
+          }
+        }
+        const bpRefRow = PAED_BP_REF[sexNorm]?.[17];
+        if (bpVal && bpRefRow) {
+          const parts = bpVal.replace(/[^0-9/]/g, '').split('/');
+          const sys = parseInt(parts[0], 10);
+          const dia = parts[1] ? parseInt(parts[1], 10) : null;
+          const [p50_sys, p90_sys, p95_sys, p50_dia, p90_dia, p95_dia] = bpRefRow;
+          const threshEl = $('paediatric-bp-thresholds');
+          if (threshEl) threshEl.textContent = `${p90_sys}/${p90_dia} (p90) • ${p95_sys}/${p95_dia} (p95)`;
+          const stagePill = $('paediatric-bp-stage-pill');
+          const noteEl = $('paediatric-bp-clinical-note');
+          let stageName = 'Normal BP';
+          let stageBg = '#ECFDF5';
+          let stageColor = '#059669';
+          let noteText = 'Within normal limits for age and height.';
+          if (!isNaN(sys)) {
+            if (sys >= p95_sys || (dia && dia >= p95_dia)) {
+              stageName = 'Elevated BP / Stage 1';
+              stageBg = '#FFF7ED';
+              stageColor = '#EA580C';
+              noteText = 'Elevated blood pressure for adolescent reference.';
+            }
+          }
+          if (stagePill) {
+            stagePill.textContent = stageName;
+            stagePill.style.background = stageBg;
+            stagePill.style.color = stageColor;
+          }
+          if (noteEl) noteEl.textContent = noteText;
+        }
       } else {
         // Valid Paediatric Range: 2 <= age < 18
         if (sub) {

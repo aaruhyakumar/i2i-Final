@@ -620,8 +620,8 @@ def classify_paediatric(fields: Dict[str, Any]) -> Dict[str, Any]:
     ht_f = _parse_float(height_raw)
     sys_i, dia_i = _parse_bp(bp_raw)
 
-    # Only classify as paediatric if explicitly marked paediatric or age < 18
-    is_paediatric = bool(fields.get("is_paediatric")) or (str(fields.get("target_group", "")).lower() == "paediatric") or (age_f is not None and age_f < 18.0)
+    # Every school screening sheet in Ink2Insights is paediatric
+    is_paediatric = True if fields.get("is_paediatric") is not False else False
 
     # BMI
     bmi_val: Optional[float] = None
