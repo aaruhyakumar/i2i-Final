@@ -509,7 +509,11 @@ class ClinicalGlossaryService:
         # 2. General Doctor Short Forms Lookup
         # Exact match in short forms table (guarding against single-letter slash-split noise)
         clean_token = re.sub(r'[^a-z0-9]', '', raw_lower)
-        CORRUPTED_SINGLE_LETTERS = {"r", "l", "b", "p", "f", "k", "e", "g", "a", "u", "v", "c", "o", "h"}
+        # NOTE: "f" and "m" are excluded from CORRUPTED_SINGLE_LETTERS intentionally:
+        # - In gender context they are already short-circuited above (expand to Female/Male).
+        # - In non-gender clinical context "F" = Follow-up / "M" = Murmur (doctor shorthand).
+        # Other single-letter tokens are ambiguous noise from OCR slash-splits.
+        CORRUPTED_SINGLE_LETTERS = {"r", "l", "b", "p", "k", "e", "g", "a", "u", "v", "c", "o", "h"}
         if clean_token not in CORRUPTED_SINGLE_LETTERS:
             for abbrev, entry in self.short_forms.items():
                 abbrev_clean = re.sub(r'[^a-z0-9]', '', abbrev.lower())

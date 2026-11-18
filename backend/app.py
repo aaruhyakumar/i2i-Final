@@ -3963,6 +3963,7 @@ def create_app(db_path: Optional[str] = None) -> Flask:
                 "success": False,
                 "error": "unreadable",
                 "message": f"Image quality check failed. Please retake the photo. Issues: {', '.join(combined_issues)}",
+                "reason": f"Image quality check failed: {', '.join(combined_issues)}",
                 "quality": quality_summary,
                 "code": "IMAGE_UNREADABLE"
             }), 422
@@ -3989,6 +3990,8 @@ def create_app(db_path: Optional[str] = None) -> Flask:
         if isinstance(result.get("data"), dict):
             result["data"]["quality"] = quality_summary
             result["data"]["quality_bypassed"] = quality_bypassed
+            if quality_bypassed and combined_issues:
+                result["data"]["quality_warning_bypassed"] = combined_issues
 
         # Inject permanent URLs so client saves durable image links in database
         result["page1_url"] = page1_permanent_url

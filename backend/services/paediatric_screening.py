@@ -620,8 +620,15 @@ def classify_paediatric(fields: Dict[str, Any]) -> Dict[str, Any]:
     ht_f = _parse_float(height_raw)
     sys_i, dia_i = _parse_bp(bp_raw)
 
-    # Every school screening sheet in Ink2Insights is paediatric
-    is_paediatric = True if fields.get("is_paediatric") is not False else False
+    # A record is paediatric only when age is known and < 18.
+    # An unknown age (None) must NOT default to paediatric — this prevents fabricated growth assessments.
+    # An explicit field["is_paediatric"] = True override is still respected (e.g. set by camp target_group).
+    if fields.get("is_paediatric") is True:
+        is_paediatric = True
+    elif age_f is not None and 0.0 <= age_f < 18.0:
+        is_paediatric = True
+    else:
+        is_paediatric = False
 
     # BMI
     bmi_val: Optional[float] = None

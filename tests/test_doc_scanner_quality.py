@@ -284,21 +284,28 @@ class TestServerQualityCheckAndExtract:
 
     @pytest.fixture
     def app_and_db(self, tmp_path):
+        import os
+        if "JWT_SECRET" not in os.environ and "SUPABASE_JWT_SECRET" not in os.environ:
+            os.environ["JWT_SECRET"] = "test-secret-key-32-chars-minimum-security-safe!!"
         from backend import database
         from backend.app import create_app
+        from backend.services.auth_service import create_access_token
 
         db_file = str(tmp_path / "test_clinic.db")
         database.init_db(db_file)
         database.get_or_create_org("org_test", db_path=db_file)
+        database.create_camp("Test Camp", 100, "Today", camp_id="camp_test", community_id="org_test", db_path=db_file)
 
         app = create_app(db_path=db_file)
         app.config["TESTING"] = True
-        return app, db_file
+        token = create_access_token(user_id="doc_test_quality", role="admin", org_id="org_test")
+        return app, db_file, token
 
     def test_server_rejects_blurred_image_with_422_and_releases_paper(self, app_and_db):
         """Server rejects blurred photo with 422 unreadable and releases paper quota."""
-        app, db_file = app_and_db
+        app, db_file, token = app_and_db
         client = app.test_client()
+        client.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {token}"
 
         sharp_img = create_synthetic_sharp_page()
         blurred_img = sharp_img.filter(ImageFilter.GaussianBlur(radius=8.0))
@@ -334,8 +341,9 @@ class TestServerQualityCheckAndExtract:
 
     def test_bypass_is_recorded_as_quality_bypassed_on_record(self, app_and_db):
         """When bypassed with X-Quality-Bypassed: 1, unreadable photo is accepted and logged."""
-        app, db_file = app_and_db
+        app, db_file, token = app_and_db
         client = app.test_client()
+        client.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {token}"
 
         sharp_img = create_synthetic_sharp_page()
         blurred_img = sharp_img.filter(ImageFilter.GaussianBlur(radius=8.0))

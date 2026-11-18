@@ -617,8 +617,8 @@ def apply_server_side_flags(fields: Dict[str, List[Any]]) -> Dict[str, Any]:
         "calculated_bmi": calculated_bmi,
         "bmi_classification": bmi_classification,
         "bp_classification": bp_classification,
-        # Paediatric-specific (Ink2Insights is exclusively paediatric screening)
-        "is_paediatric": True,
+        # Paediatric-specific
+        "is_paediatric": paediatric_result.get("is_paediatric", False),
         "paediatric_bmi_classification": paediatric_result["paediatric_bmi_classification"],
         "paediatric_bp_classification": paediatric_result["paediatric_bp_classification"],
         "atr_classification": paediatric_result["atr_classification"],
