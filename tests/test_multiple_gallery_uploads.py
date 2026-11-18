@@ -56,7 +56,7 @@ def test_index_html_cache_buster():
     html = INDEX_PATH.read_text(encoding="utf-8")
     
     assert re.search(r"styles\.css\?v=20261116_bug0[5-7]", html), "Expected updated css cache buster v=20261116_bug05..07"
-    assert re.search(r"js/app\.js\?v=20261116_bug0[5-7]", html), "Expected updated app.js cache buster v=20261116_bug05..07"
+    assert re.search(r"js/app\.js\?v=20261116_(bug0[5-7]|fix\d+)", html), "Expected updated app.js cache buster"
 
 
 def test_scanner_handle_file_upload_signature():

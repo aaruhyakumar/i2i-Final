@@ -188,6 +188,22 @@ export const api = {
     });
   },
 
+  async forgotPassword(email) {
+    return request('/api/auth/forgot-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email })
+    });
+  },
+
+  async resetPassword(token, newPassword) {
+    return request('/api/auth/reset-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword })
+    });
+  },
+
   async loginDemo() {
     return request('/api/auth/demo', {
       method: 'POST',

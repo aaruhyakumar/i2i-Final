@@ -28,6 +28,13 @@ def temp_db(tmp_path):
 @pytest.fixture
 def test_client(temp_db):
     from backend.services.auth_service import create_access_token
+    database.get_or_create_doctor(
+        email="doc_seg@test.org",
+        full_name="Dr. Seg",
+        auth_id="doc_seg",
+        community_id="org_default",
+        db_path=temp_db
+    )
     app = create_app(db_path=temp_db)
     app.config["TESTING"] = True
     token = create_access_token(user_id="doc_seg", role="admin", org_id="org_default")

@@ -36,13 +36,19 @@ def client(tmp_path):
 def test_load_all_four_client_templates():
     """Verify all 4 client templates load cleanly and satisfy schema validation."""
     engine = TemplateEngine()
-    templates = engine.list_templates()
+    templates = engine.list_templates(active_only=False)
     assert len(templates) >= 4
 
     ids = [t["id"] for t in templates]
     assert "tpl_adult_history_v9_1" in ids
     assert "tpl_adult_examination_v9_1" in ids
     assert "tpl_paediatric_history_v9_3" in ids
+    assert "tpl_paediatric_examination_v9_7" in ids
+
+    # Active templates are exclusively paediatric
+    active = engine.list_templates(active_only=True)
+    assert len(active) == 2
+    assert all(t["family"] == "paediatric" for t in active)
     assert "tpl_paediatric_examination_v9_7" in ids
 
 
@@ -115,12 +121,17 @@ def test_paediatric_prompt_only_uses_paediatric_pdf_fields():
 # ==============================================================================
 
 def test_classify_exact_footer_match():
-    """Classification matches exact footer code."""
-    res = default_template_engine.classify_page(footer_code_detected="ASF-D&A-ACS-9.1/03/25")
-    assert res["matched"] is True
-    assert res["template_id"] == "tpl_adult_history_v9_1"
-    assert res["method"] == "footer_exact"
-    assert res["confidence"] == 1.0
+    """Classification matches paediatric footers; rejects adult footers as unsupported."""
+    res_paed = default_template_engine.classify_page(footer_code_detected="ASF-D&A-PCS-9.3/07/25")
+    assert res_paed["matched"] is True
+    assert res_paed["template_id"] == "tpl_paediatric_history_v9_3"
+    assert res_paed["method"] == "footer_exact"
+    assert res_paed["confidence"] == 1.0
+
+    res_adult = default_template_engine.classify_page(footer_code_detected="ASF-D&A-ACS-9.1/03/25")
+    assert res_adult["matched"] is False
+    assert res_adult["method"] == "unsupported"
+    assert "Adult screening form" in res_adult["warning"]
 
 
 def test_classify_fuzzy_footer_match():
@@ -339,12 +350,18 @@ def test_invariant_version_tracking_validation():
 # ==============================================================================
 
 def test_api_list_templates(client):
-    """GET /api/templates returns available templates."""
+    """GET /api/templates returns available active templates (paediatric only by default)."""
     res = client.get("/api/templates")
     assert res.status_code == 200
     data = res.get_json()
     assert "templates" in data
-    assert data["count"] >= 4
+    assert data["count"] == 2
+    assert all(t["family"] == "paediatric" for t in data["templates"])
+
+    # all=true returns all loaded templates
+    res_all = client.get("/api/templates?all=true")
+    assert res_all.status_code == 200
+    assert res_all.get_json()["count"] >= 4
 
 
 def test_api_get_template_ui_schema(client):
@@ -357,12 +374,20 @@ def test_api_get_template_ui_schema(client):
 
 
 def test_api_classify_template(client):
-    """POST /api/templates/classify correctly classifies footer."""
-    res = client.post("/api/templates/classify", json={"footer_code": "ASF-D&A-ACS-9.1/03/25"})
-    assert res.status_code == 200
-    data = res.get_json()
-    assert data["matched"] is True
-    assert data["template_id"] == "tpl_adult_history_v9_1"
+    """POST /api/templates/classify correctly classifies paediatric footer and rejects adult."""
+    # Paediatric classification
+    res_paed = client.post("/api/templates/classify", json={"footer_code": "ASF-D&A-PCS-9.3/07/25"})
+    assert res_paed.status_code == 200
+    assert res_paed.get_json()["matched"] is True
+    assert res_paed.get_json()["template_id"] == "tpl_paediatric_history_v9_3"
+
+    # Adult classification rejection
+    res_adult = client.post("/api/templates/classify", json={"footer_code": "ASF-D&A-ACS-9.1/03/25"})
+    assert res_adult.status_code == 200
+    data = res_adult.get_json()
+    assert data["matched"] is False
+    assert data["method"] == "unsupported"
+    assert data["template_id"] is None
 
 
 def test_api_pair_case(client):

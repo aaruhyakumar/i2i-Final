@@ -80,13 +80,30 @@ Rules:
 - If you cannot read it, return [null, a number below 0.5].
 - Yes or No fields return exactly 'Yes', 'No' or null.
 - Normal or abnormal fields return exactly 'Normal', 'Abnormal' or null, with details in the _d field.
-- Circled 'N' or circled 'Normal' indicates 'Normal'.
-- When a curly bracket '{' or vertical line spans multiple items (e.g. Nose and Throat, or Skin and Hair) with 'N' or a note next to it, apply that status to all spanned items (e.g. sys_nose='Normal', sys_throat='Normal').
-- When 'B/L' (bilateral) is written across ear or eye examination columns (e.g. 'B/L Wax'), apply it to both otoscope_right_ear and otoscope_left_ear.
-- Mobile numbers: read across all 10 digit boxes into one contiguous number string (e.g. '9884783689').
-- For spinal_caliper_atr, extract the degree measurement (e.g. '5' or '5°').
-- Copy numbers exactly as written. Do not convert units.
-- Do not diagnose or add medical advice.
+- Checkboxes, tick marks & options:
+  * Any checkmark (✓), tick, diagonal slash (/), vertical stroke (|), dot, filled square, or circled option indicates selected (Yes or the chosen option).
+  * Circled or underlined words (e.g. circled 'General Health', circled 'Male', circled 'Normal', circled 'Unaided') indicate that option is selected.
+  * Handwritten 'Yes', 'Y', 'No', 'N', 'Normal', 'NAD', 'WNL' in or beside a checkbox or row indicates that selection.
+  * A cross (✗) placed in a checkbox or crossing out an option indicates unselected / No, unless it is the only marked box in a selection group indicating the choice.
+  * If a box is crossed out or struck through with a line and another is ticked, read the intended selection.
+- Brackets & multi-row findings:
+  * When a curly bracket '{' or vertical line spans multiple items (e.g. Nose and Throat, or Skin and Hair) with 'N', 'Normal', 'NAD', 'WNL' or a note next to it, apply that status to all spanned items (e.g. sys_nose='Normal', sys_throat='Normal').
+- Bilateral findings:
+  * When 'B/L' (bilateral) is written across ear or eye examination columns (e.g. 'B/L Wax', 'B/L Cerumen', 'B/L WNL', 'B/L Normal'), apply it to both otoscope_right_ear and otoscope_left_ear.
+- Visual Acuity (distant vision):
+  * The examination sheet pre-prints '6/'. If the doctor writes only the denominator (e.g. '6', '9', '12', '18', '24', '36', '60'), extract the full Snellen fraction (e.g. '6/6', '6/9', '6/12').
+  * Non-fraction notations: 'CF' (Counting Fingers), 'HM' (Hand Movements), 'PL' (Perception of Light), 'NPL' (No Perception of Light) must be extracted as written.
+- Spinal Caliper ATR:
+  * Extract numeric degree values (e.g. '5', '5°', '0°', '3 deg').
+  * If marked 'Nil', 'NAD', 'None', or '-', extract as written ('Nil', 'NAD').
+  * If unreadable, scribbled, or ambiguous, return [null, <0.5] — never guess 0. Only explicit 0 or 0° represents zero.
+- Mobile numbers:
+  * Read across all 10 digit boxes into one contiguous number string (e.g. '9884783689').
+- Common camp shorthand to recognize:
+  * 'NAD' (No Abnormality Detected), 'WNL' (Within Normal Limits), 'DNS' (Deviated Nasal Septum), 'CSOM' (Chronic Suppurative Otitis Media), 'AOM' (Acute Otitis Media), 'TM intact/dull/retracted', 'Caries irt [tooth#]' (irt = in relation to), 'Pediculosis' (Head lice), 'Pityriasis alba', 'C/O' (Complains of), 'H/O' (History of), 'Ref' (Referred), 'Adv' (Advised).
+  * Do not invent diagnoses or extrapolate advice not present on paper.
+- Numerical fidelity:
+  * Copy numbers exactly as written: never round, interpolate, shift decimal points (e.g. if written '15.4' or '154', copy exactly), or convert units.
 
 Field keys to extract:
 Identifiers: screening_type, school_name, admission_id, moc_doc_id
@@ -910,6 +927,211 @@ def validate_and_sanitize_extraction(raw_payload: Any) -> Dict[str, Any]:
     }
 
 
+# Authorship and ownership partitions for multi-page paediatric forms
+PAGE1_DEMOGRAPHIC_KEYS = {
+    "person_name", "dob", "gender", "blood_group", "parent_name", "mobile_number",
+    "email", "address", "school_name", "screening_type", "known_allergies",
+    "current_medication", "past_surgery", "vaccinated_for_age", "behaviour_concerns",
+    "other_medical_issues", "family_adults_count", "family_minors_count",
+    "pediatrician_name", "consent_screening", "consent_first_aid",
+    "consent_data_research", "parent_signature"
+}
+
+PAGE2_EXAMINATION_KEYS = {
+    "exam_date", "height", "weight", "waist_circumference", "bmi",
+    "blood_pressure", "pulse", "spinal_caliper_atr", "vital_signs_status",
+    "vital_signs_details", "gait_status", "gait_details", "otoscope_right_ear",
+    "otoscope_left_ear", "sys_nose", "sys_throat", "sys_skin", "sys_hair",
+    "sys_other_systems", "vision_aid_status", "vision_distant_right",
+    "vision_distant_left", "vision_color", "dental_status", "dental_abnormality",
+    "dental_advice", "specialist_referred_to", "doctor_name", "doctor_signature"
+}
+
+SHARED_LINKING_KEYS = {
+    "admission_id", "class_and_section", "moc_doc_id", "age", "person_name"
+}
+
+
+def _is_field_populated(field_obj: Optional[Dict[str, Any]]) -> bool:
+    """Check if a normalized field result contains actual extracted information."""
+    if not isinstance(field_obj, dict):
+        return False
+    if field_obj.get("status") in ("empty", "unreadable"):
+        return False
+    raw = str(field_obj.get("raw_text") or "").strip()
+    if not raw or raw.lower() in ("null", "none", "n/a", "na", "nil", "undefined", "unknown"):
+        return False
+    norm = field_obj.get("normalized_value")
+    if norm is not None and str(norm).strip() != "":
+        return True
+    return True
+
+
+def _values_equivalent(val1: Any, val2: Any) -> bool:
+    """Compare two clinical values for equivalency, ignoring case, formatting and minor punctuation."""
+    if val1 is None and val2 is None:
+        return True
+    if val1 is None or val2 is None:
+        return False
+    s1 = re.sub(r'[\s.,_\-\(\)/]+', '', str(val1).lower())
+    s2 = re.sub(r'[\s.,_\-\(\)/]+', '', str(val2).lower())
+    if s1 == s2:
+        return True
+    if len(s1) >= 4 and len(s2) >= 4 and (s1.startswith(s2) or s2.startswith(s1)):
+        return True
+    return False
+
+
+def merge_multipage_normalized_records(
+    template_results: List[Dict[str, Any]]
+) -> Dict[str, Any]:
+    """Safely coalesces normalized results across multiple pages without cross-page overwriting.
+
+    Rules:
+    1. Page 1 demographics & identity (filled by parents/registration) are authoritative for
+       student identity and personal info. Empty Page 2 fields NEVER overwrite populated Page 1 fields.
+    2. Page 2 clinical examinations & findings (filled by doctor) are authoritative for
+       vitals, biometric measurements, otoscopy, vision, dental, systemic and referral info.
+    3. If conflicting values appear on both pages for an identity field, Page 1 is preserved
+       as primary, the conflict is recorded in conflict_details, and status is set to 'conflict_warning'.
+    4. Provenance tracking: every field retains source_page (1 or 2) and template_id.
+    5. Reconciles missing_fields: a field is only missing if not populated across any defining page.
+    """
+    if not template_results:
+        return {
+            "template_id": None,
+            "template_ids": [],
+            "template_version": "1.0.0",
+            "fields": {},
+            "data": {},
+            "missing_fields": [],
+            "uncertain_fields": [],
+            "conflicts": []
+        }
+
+    if len(template_results) == 1:
+        single = template_results[0]
+        f_dict = single.get("fields") or {}
+        for k, v in f_dict.items():
+            if isinstance(v, dict):
+                v["source_page"] = 1
+                v["template_id"] = single.get("template_id")
+        return {
+            "template_id": single.get("template_id"),
+            "template_ids": [single.get("template_id")],
+            "template_version": single.get("template_version", "1.0.0"),
+            "fields": f_dict,
+            "data": {k: v.get("normalized_value") for k, v in f_dict.items() if isinstance(v, dict)},
+            "missing_fields": list(single.get("missing_fields") or []),
+            "uncertain_fields": list(single.get("uncertain_fields") or []),
+            "conflicts": []
+        }
+
+    p1_res = template_results[0]
+    p2_res = template_results[1]
+    p1_tid = p1_res.get("template_id", "tpl_paediatric_history_v9_3")
+    p2_tid = p2_res.get("template_id", "tpl_paediatric_examination_v9_7")
+
+    p1_fields = dict(p1_res.get("fields") or {})
+    p2_fields = dict(p2_res.get("fields") or {})
+
+    # Tag provenance
+    for k, v in p1_fields.items():
+        if isinstance(v, dict):
+            v.setdefault("source_page", 1)
+            v.setdefault("template_id", p1_tid)
+
+    for k, v in p2_fields.items():
+        if isinstance(v, dict):
+            v.setdefault("source_page", 2)
+            v.setdefault("template_id", p2_tid)
+
+    merged_fields: Dict[str, Any] = {}
+    conflict_keys: List[str] = []
+    all_keys = set(p1_fields.keys()).union(set(p2_fields.keys()))
+
+    for key in all_keys:
+        in_p1 = key in p1_fields
+        in_p2 = key in p2_fields
+
+        if in_p1 and not in_p2:
+            merged_fields[key] = p1_fields[key]
+        elif in_p2 and not in_p1:
+            merged_fields[key] = p2_fields[key]
+        else:
+            # Field exists in BOTH templates (e.g. person_name, class_and_section, admission_id, moc_doc_id, age)
+            f1 = p1_fields[key]
+            f2 = p2_fields[key]
+            p1_pop = _is_field_populated(f1)
+            p2_pop = _is_field_populated(f2)
+
+            if p1_pop and not p2_pop:
+                # Valid Page 1 value preserved: empty/unreadable Page 2 field DOES NOT overwrite
+                merged_fields[key] = f1
+            elif not p1_pop and p2_pop:
+                # Page 1 was blank; populate from Page 2
+                merged_fields[key] = f2
+            elif not p1_pop and not p2_pop:
+                # Both empty: keep Page 1 definition
+                merged_fields[key] = f1
+            else:
+                # BOTH pages have non-empty values
+                val1 = f1.get("normalized_value") if f1.get("normalized_value") is not None else f1.get("raw_text")
+                val2 = f2.get("normalized_value") if f2.get("normalized_value") is not None else f2.get("raw_text")
+
+                if _values_equivalent(val1, val2):
+                    # Consistent: Page 1 authoritative for identity; keep Page 1
+                    merged_fields[key] = f1
+                else:
+                    # TRUE CONFLICT: Do NOT merge silently
+                    conflict_keys.append(key)
+                    # Page 1 is preserved as primary value, conflict details attached
+                    f1_copy = dict(f1)
+                    f1_copy["status"] = "conflict_warning"
+                    f1_copy["conflict_details"] = {
+                        "primary_source_page": 1,
+                        "page1_raw": f1.get("raw_text"),
+                        "page1_normalized": f1.get("normalized_value"),
+                        "page1_template_id": p1_tid,
+                        "page2_raw": f2.get("raw_text"),
+                        "page2_normalized": f2.get("normalized_value"),
+                        "page2_template_id": p2_tid,
+                        "conflict": True,
+                        "message": f"Conflicting values between Page 1 ('{f1.get('raw_text')}') and Page 2 ('{f2.get('raw_text')}')"
+                    }
+                    merged_fields[key] = f1_copy
+
+    # Reconcile missing fields across pages
+    # A field is only missing if it was required in its template and is NOT populated in merged_fields
+    raw_missing = set(p1_res.get("missing_fields") or []).union(set(p2_res.get("missing_fields") or []))
+    final_missing_fields: List[str] = []
+    for m_key in raw_missing:
+        if not _is_field_populated(merged_fields.get(m_key)):
+            final_missing_fields.append(m_key)
+
+    # Reconcile uncertain fields
+    final_uncertain_fields: List[str] = []
+    for k, v in merged_fields.items():
+        if not isinstance(v, dict):
+            continue
+        conf = float(v.get("confidence") or 1.0)
+        status = v.get("status")
+        if status in ("unreadable", "format_warning", "implausible_vitals", "conflict_warning") or conf < 0.60:
+            if k not in final_missing_fields:
+                final_uncertain_fields.append(k)
+
+    return {
+        "template_id": p1_tid,
+        "template_ids": [p1_tid, p2_tid],
+        "template_version": p1_res.get("template_version", "1.0.0"),
+        "fields": merged_fields,
+        "data": {k: v.get("normalized_value") for k, v in merged_fields.items() if isinstance(v, dict)},
+        "missing_fields": sorted(final_missing_fields),
+        "uncertain_fields": sorted(list(set(final_uncertain_fields))),
+        "conflicts": sorted(conflict_keys)
+    }
+
+
 def resolve_ai_service(
     provider: Optional[str] = None,
     api_key: Optional[str] = None,
@@ -977,6 +1199,7 @@ def extract(
             )
 
     # Step 3: Atomic reservation if not a free re-scan
+    has_reserved_paper = False
     if not is_free_rescan:
         reserved, res_code, papers_left = database.reserve_paper(org_id=org_id, record_id=record_id, db_path=target_db)
         if not reserved:
@@ -1001,6 +1224,16 @@ def extract(
                     "code": "LIMIT_REACHED",
                     "http_status": 402
                 }
+        has_reserved_paper = True
+
+    def _safe_release_paper(reason: str):
+        nonlocal has_reserved_paper
+        if has_reserved_paper and not is_free_rescan:
+            try:
+                database.release_paper(org_id=org_id, record_id=record_id, reason=reason, db_path=target_db)
+                has_reserved_paper = False
+            except Exception as rel_err:
+                logger.warning("Could not release paper quota (reason: %s): %s", reason, rel_err)
 
     # Step 4: Call Unified AI Service with auto-detected or explicit key
     service = resolve_ai_service(provider=provider, api_key=api_key, model=model)
@@ -1013,8 +1246,7 @@ def extract(
     )
 
     if not service.is_configured() and not is_mocked:
-        if not is_free_rescan:
-            database.release_paper(org_id=org_id, record_id=record_id, reason="ai_not_configured", db_path=target_db)
+        _safe_release_paper("ai_not_configured")
         return {
             "success": False,
             "error": f"{service.provider_name()} API key is not configured.",
@@ -1023,12 +1255,44 @@ def extract(
         }
 
     camp = database.get_camp_by_id(camp_id, db_path=target_db) if camp_id else None
-    camp_target_group = (camp.get("target_group") if camp else None) or "adult"
-    if template_ids:
-        from .template_engine import default_template_engine
-        prompt_to_use = default_template_engine.build_extraction_prompt(template_ids)
-    else:
-        prompt_to_use = get_prompt_for_target_group(camp_target_group)
+    camp_target_group = camp.get("target_group") if camp else None
+
+    from .template_engine import default_template_engine
+
+    # Step 1: Safely resolve document pair classification and routing
+    resolution = default_template_engine.resolve_page_pair(
+        p1_bytes=student_form_bytes,
+        p2_bytes=health_assessment_bytes,
+        camp_target_group=camp_target_group,
+        client_template_ids=template_ids
+    )
+
+    if not resolution.get("resolved"):
+        _safe_release_paper("classification_uncertain")
+        return {
+            "success": False,
+            "error": resolution.get("error", "Document classification uncertain: unable to identify form template."),
+            "code": resolution.get("code", "CLASSIFICATION_UNCERTAIN"),
+            "http_status": 422,
+            "classification": resolution
+        }
+
+    resolved_family = resolution.get("family")
+    if resolved_family != "paediatric":
+        _safe_release_paper("document_unsupported")
+        return {
+            "success": False,
+            "error": resolution.get("error", "Adult screening forms are no longer supported. Ink2Insights is exclusively for paediatric screening (ASF-D&A-PCS-9.3 History and ASF-D&A-PCS-9.7 Examination)."),
+            "code": resolution.get("code", "DOCUMENT_UNSUPPORTED"),
+            "http_status": 422,
+            "classification": resolution
+        }
+
+    resolved_templates = resolution.get("template_ids") or ["tpl_paediatric_history_v9_3", "tpl_paediatric_examination_v9_7"]
+    authoritative_primary_tid = resolved_templates[0]
+
+    # Step 2: Use paediatric extraction prompt exclusively
+    prompt_to_use = PAEDIATRIC_EXTRACTION_PROMPT
 
     try:
         try:
@@ -1038,7 +1302,7 @@ def extract(
                 health_assessment_bytes=health_assessment_bytes,
                 health_assessment_mime="image/jpeg",
                 prompt=prompt_to_use,
-                target_group=camp_target_group
+                target_group=resolved_family
             )
         except TypeError:
             extraction_res = service.extract_from_images(
@@ -1049,8 +1313,7 @@ def extract(
             )
     except Exception as e:
         logger.exception("AI extraction exception: %s", e)
-        if not is_free_rescan:
-            database.release_paper(org_id=org_id, record_id=record_id, reason="exception", db_path=target_db)
+        _safe_release_paper("exception")
         return {
             "success": False,
             "error": f"Claude extraction error: {str(e)}",
@@ -1060,7 +1323,6 @@ def extract(
 
     # Log calls in usage_ledger
     calls = extraction_res.get("calls", [])
-    primary_template_id = template_ids[0] if template_ids else None
     for call_info in calls:
         if call_info:
             action = "escalation_call" if call_info.get("model") == service.fallback_model else "extract_call"
@@ -1074,39 +1336,50 @@ def extract(
                 tokens_think=call_info.get("tokens_think", 0),
                 seconds=call_info.get("seconds", 0.0),
                 cost_rs=call_info.get("cost_rs", 0.0),
-                notes=f"template:{primary_template_id}" if primary_template_id else None,
+                notes=f"template:{authoritative_primary_tid}",
                 db_path=target_db
             )
 
     if not extraction_res.get("success"):
         # Failed reads are free: release paper
-        if not is_free_rescan:
-            database.release_paper(org_id=org_id, record_id=record_id, reason="extraction_failed", db_path=target_db)
+        _safe_release_paper("extraction_failed")
         extraction_res["status"] = "needs_manual"
         extraction_res["http_status"] = 422
         return extraction_res
 
     # Normalization via default_extraction_pipeline (glossary + invariants)
+    # Normalizes BOTH Page 1 (History) and Page 2 (Examination) templates with safe cross-page coalescence
     try:
         from .extraction_v2 import default_extraction_pipeline
-        chosen_tid = primary_template_id or ("tpl_paediatric_history_v9_3" if camp_target_group == "paediatric" else "tpl_adult_history_v9_1")
-        norm_res = default_extraction_pipeline.process_extracted_payload(chosen_tid, extraction_res.get("data") or {})
-        if norm_res:
-            extraction_res["template_id"] = chosen_tid
-            extraction_res["template_version"] = norm_res.get("template_version", "1.0.0")
-            extraction_res["form_family"] = "paediatric" if "paediatric" in chosen_tid else "adult"
-            if norm_res.get("missing_fields"):
-                cur_miss = set(extraction_res.get("missing_fields") or [])
-                cur_miss.update(norm_res["missing_fields"])
-                extraction_res["missing_fields"] = list(cur_miss)
-            if norm_res.get("uncertain_fields"):
-                cur_unc = set(extraction_res.get("uncertain_fields") or [])
-                cur_unc.update(norm_res["uncertain_fields"])
-                extraction_res["uncertain_fields"] = list(cur_unc)
+        raw_extracted = extraction_res.get("data") or {}
+        templates_to_normalize = resolved_templates if resolved_templates else [authoritative_primary_tid]
+
+        template_norm_results = []
+        for tid in templates_to_normalize:
+            norm_res = default_extraction_pipeline.process_extracted_payload(tid, raw_extracted)
+            if norm_res:
+                template_norm_results.append(norm_res)
+
+        if template_norm_results:
+            merged_norm = merge_multipage_normalized_records(template_norm_results)
+            extraction_res["template_id"] = authoritative_primary_tid
+            extraction_res["template_ids"] = templates_to_normalize
+            extraction_res["template_version"] = merged_norm.get("template_version", "1.0.0")
+            extraction_res["form_family"] = resolved_family
+            extraction_res["normalized_fields"] = merged_norm.get("fields") or {}
+            extraction_res["missing_fields"] = merged_norm.get("missing_fields") or []
+            extraction_res["uncertain_fields"] = merged_norm.get("uncertain_fields") or []
+            if merged_norm.get("conflicts"):
+                extraction_res["conflicts"] = merged_norm.get("conflicts")
+            # Update extraction_res["data"] with complete coalesced values across both pages
+            if isinstance(extraction_res.get("data"), dict):
+                extraction_res["data"].update(merged_norm.get("data") or {})
+            else:
+                extraction_res["data"] = merged_norm.get("data") or {}
     except Exception as norm_err:
         logger.warning("Glossary/invariant normalization error: %s", norm_err)
 
-    if camp_target_group == "paediatric":
+    if resolved_family == "paediatric" or camp_target_group == "paediatric":
         try:
             from .paediatric_screening import evaluate_paediatric_record
             structured = extraction_res.get("data") or {}
@@ -1130,6 +1403,10 @@ def extract(
                 }
         except Exception as p_err:
             logger.warning("Automated paediatric screening evaluation warning: %s", p_err)
+
+    extraction_res["classification"] = resolution
+    extraction_res["form_family"] = resolved_family
+    extraction_res["template_ids"] = resolved_templates
 
     extraction_res["record_id"] = record_id
     extraction_res["hash"] = img_hash

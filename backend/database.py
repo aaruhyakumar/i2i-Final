@@ -1325,6 +1325,116 @@ def insert_paediatric_record(record_data: Dict[str, Any], db_path: str = DEFAULT
         conn.commit()
     return get_paediatric_record_by_id(rec_id, db_path) # type: ignore
 
+
+def extract_file_id_from_preview(preview_value: Optional[str]) -> Optional[str]:
+    """Extract a normalized file_id from a preview path, URL, or identifier string.
+    Returns None if the value is empty, not a string, or does not refer to a registered file_id.
+    """
+    if not preview_value or not isinstance(preview_value, str):
+        return None
+    val = preview_value.strip()
+    if not val or val.lower().startswith(("data:", "blob:", "/uploads/")):
+        return None
+
+    # URL path format: /api/files/<file_id> (with optional query string)
+    if "/api/files/" in val:
+        candidate = val.split("/api/files/")[1].split("?")[0].split("/")[0].strip()
+        if candidate:
+            return candidate
+
+    # Bare file_id format: file_<hex>
+    if val.startswith("file_") and "?" not in val and "/" not in val:
+        return val
+
+    # Match pattern file_[a-zA-Z0-9_-]+ anywhere in the string
+    match = re.search(r'\b(file_[a-zA-Z0-9_-]+)\b', val)
+    if match:
+        return match.group(1)
+
+    return None
+
+
+def link_record_files(
+    record_id: str,
+    page1_preview: Optional[str] = None,
+    page2_preview: Optional[str] = None,
+    camp_id: Optional[str] = None,
+    community_id: Optional[str] = None,
+    db_path: str = DEFAULT_DB_PATH,
+    cursor: Optional[sqlite3.Cursor] = None
+) -> List[str]:
+    """
+    Link uploaded scan files in files table to record_id (Task 9B).
+    Validates camp and community boundaries, ensures files already linked to another record
+    are never overwritten, and supports 1-page and 2-page records.
+    Returns list of linked file_ids.
+    """
+    init_db(db_path)
+    file_ids_to_link = []
+    for prev in (page1_preview, page2_preview):
+        fid = extract_file_id_from_preview(prev)
+        if fid and fid not in file_ids_to_link:
+            file_ids_to_link.append(fid)
+
+    if not file_ids_to_link:
+        return []
+
+    def _execute_linking(cur: sqlite3.Cursor) -> List[str]:
+        linked = []
+        # Query known other camps to detect cross-camp file linking attempts
+        other_camps = []
+        if camp_id:
+            cur.execute("SELECT id FROM camps WHERE id != ?;", (camp_id,))
+            other_camps = [row[0] for row in cur.fetchall() if row[0]]
+
+        for fid in file_ids_to_link:
+            cur.execute("SELECT id, org_id, record_id, original_filename FROM files WHERE id = ?;", (fid,))
+            row = cur.fetchone()
+            if not row:
+                continue
+
+            existing_rec = row["record_id"] if isinstance(row, sqlite3.Row) else row[2]
+            if existing_rec:
+                if existing_rec == record_id:
+                    linked.append(fid)
+                else:
+                    logger.warning("File %s already linked to record %s; cannot overwrite with %s", fid, existing_rec, record_id)
+                continue
+
+            # Community boundary check
+            file_org = (row["org_id"] if isinstance(row, sqlite3.Row) else row[1]) or ""
+            file_org = str(file_org).strip()
+            target_comm = str(community_id).strip() if community_id else ""
+            if file_org and target_comm:
+                if file_org != target_comm and file_org not in ("org_default", "comm_demo") and target_comm not in ("org_default", "comm_demo"):
+                    logger.warning("File %s community '%s' does not match record community '%s'; linking aborted", fid, file_org, target_comm)
+                    continue
+
+            # Camp boundary check
+            file_fname = str((row["original_filename"] if isinstance(row, sqlite3.Row) else row[3]) or "").strip()
+            if file_fname and other_camps:
+                is_other_camp = any(file_fname.startswith(f"{oc}_") or file_fname.startswith(f"{oc}.") for oc in other_camps)
+                if is_other_camp:
+                    logger.warning("File %s belongs to another camp (filename: %s); linking aborted", fid, file_fname)
+                    continue
+
+            # Atomically update files.record_id only if currently NULL
+            cur.execute("UPDATE files SET record_id = ? WHERE id = ? AND record_id IS NULL;", (record_id, fid))
+            if cur.rowcount > 0:
+                linked.append(fid)
+
+        return linked
+
+    if cursor:
+        return _execute_linking(cursor)
+    else:
+        with get_db_connection(db_path) as conn:
+            cur = conn.cursor()
+            res = _execute_linking(cur)
+            conn.commit()
+            return res
+
+
 def insert_record(record_data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
     """Insert a new record, routing to segregated adult_records or paediatric_records, and syncing records."""
     init_db(db_path)
@@ -1419,6 +1529,15 @@ def insert_record(record_data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -
                 now,
                 now
             ))
+            link_record_files(
+                record_id=rec_id,
+                page1_preview=record_data.get("page1_preview"),
+                page2_preview=record_data.get("page2_preview"),
+                camp_id=camp_id,
+                community_id=comm_id,
+                db_path=db_path,
+                cursor=cursor
+            )
             conn.commit()
     except Exception as e:
         # Atomic rollback: remove orphaned record from segregated table
@@ -1502,6 +1621,16 @@ def update_record(record_id: str, update_data: Dict[str, Any], db_path: str = DE
             now,
             record_id
         ))
+        if "page1_preview" in update_data or "page2_preview" in update_data:
+            link_record_files(
+                record_id=record_id,
+                page1_preview=update_data.get("page1_preview"),
+                page2_preview=update_data.get("page2_preview"),
+                camp_id=existing.get("camp_id"),
+                community_id=existing.get("community_id"),
+                db_path=db_path,
+                cursor=cursor
+            )
         conn.commit()
     return get_record_by_id(record_id, db_path)
 
@@ -3947,6 +4076,23 @@ def save_private_file(
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
         """, (file_id, org_id, record_id, file_type, filename, storage_path, mime_type, len(data), now))
         conn.commit()
+
+    try:
+        from backend.services.supabase_service import supabase_service
+        if supabase_service.is_configured():
+            supabase_service.save_file_metadata(
+                file_id=file_id,
+                org_id=org_id,
+                storage_path=storage_path,
+                file_type=file_type,
+                original_filename=filename,
+                mime_type=mime_type,
+                file_size=len(data),
+                record_id=record_id
+            )
+    except Exception as sup_file_err:
+        logger.debug("Failed to mirror file metadata to Supabase: %s", sup_file_err)
+
     return file_id
 
 
@@ -3957,7 +4103,17 @@ def get_file_by_id(file_id: str, db_path: str = DEFAULT_DB_PATH) -> Optional[Dic
         cursor = conn.cursor()
         cursor.execute("SELECT * FROM files WHERE id = ?;", (file_id,))
         row = cursor.fetchone()
-        return dict(row) if row else None
+        if row:
+            return dict(row)
+    try:
+        from backend.services.supabase_service import supabase_service
+        if supabase_service.is_configured():
+            sup_file = supabase_service.get_file(file_id)
+            if sup_file:
+                return sup_file
+    except Exception:
+        pass
+    return None
 
 
 def delete_file_by_id(file_id: str, db_path: str = DEFAULT_DB_PATH, private_dir: Optional[str] = None) -> bool:

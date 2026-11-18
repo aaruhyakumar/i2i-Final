@@ -317,6 +317,7 @@ def decode_access_token(token: str, verify_exp: bool = True) -> Dict[str, Any]:
         algorithms=[alg],
         audience="authenticated",
         issuer=token_iss,
+        leeway=60,
         options={
             "verify_exp": verify_exp,
             "verify_aud": True,

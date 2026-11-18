@@ -29,6 +29,29 @@ GLOSSARY_PATH = os.path.join(
 
 # Field-scoped explicit overrides
 SCOPED_DISAMBIGUATION = {
+    "history": {
+        "c/o": "Complaints of",
+        "co": "Complaints of",
+        "no c/o": "No complaints",
+        "no co": "No complaints",
+        "h/o": "History of",
+        "ho": "History of",
+        "no h/o": "No history of",
+        "no ho": "No history of",
+        "k/c/o": "Known case of",
+        "kco": "Known case of",
+        "n/k/c/o": "Not a known case of",
+        "nkco": "Not a known case of",
+        "p/h": "Past History",
+        "ph": "Past History",
+        "f/h": "Family History",
+        "fh": "Family History",
+        "fh/o": "Family history of",
+        "fho": "Family history of",
+        "nad": "No Abnormality Detected",
+        "wnl": "Within Normal Limits",
+        "nil": "Nil significant"
+    },
     "medications": {
         "od": "Once Daily (omni die)",
         "o.d": "Once Daily (omni die)",
@@ -100,7 +123,43 @@ SCOPED_DISAMBIGUATION = {
         "nv": "Normal Vesicular Breath Sounds",
         "s1s2": "Normal Heart Sounds (S1, S2 Present)",
         "s1 s2": "Normal Heart Sounds (S1, S2 Present)",
-        "s1, s2": "Normal Heart Sounds (S1, S2 Present)"
+        "s1, s2": "Normal Heart Sounds (S1, S2 Present)",
+        "dns": "Deviated Nasal Septum (DNS)",
+        "d.n.s": "Deviated Nasal Septum (DNS)",
+        "csom": "Chronic Suppurative Otitis Media (CSOM)",
+        "c.s.o.m": "Chronic Suppurative Otitis Media (CSOM)",
+        "aom": "Acute Otitis Media (AOM)",
+        "a.o.m": "Acute Otitis Media (AOM)",
+        "tm intact": "Tympanic Membrane Intact",
+        "tm dull": "Tympanic Membrane Dull",
+        "tm retracted": "Tympanic Membrane Retracted",
+        "b/l wax": "Bilateral Wax Impaction",
+        "bl wax": "Bilateral Wax Impaction",
+        "b/l": "Bilateral",
+        "bl": "Bilateral",
+        "u/l": "Unilateral",
+        "ul": "Unilateral",
+        "urti": "Upper Respiratory Tract Infection",
+        "lrti": "Lower Respiratory Tract Infection",
+        "gerd": "Gastroesophageal Reflux Disease",
+        "rct": "Root Canal Treatment",
+        "caries": "Dental Caries",
+        "wax": "Wax Impaction",
+        "cerumen": "Cerumen Impaction",
+        "pediculosis": "Pediculosis (Head Lice)",
+        "pityriasis alba": "Pityriasis Alba"
+    },
+    "dental": {
+        "caries": "Dental Caries",
+        "cavity": "Dental Caries",
+        "cavities": "Dental Caries",
+        "malocclusion": "Malocclusion",
+        "gingivitis": "Gingivitis",
+        "stains": "Extrinsic Dental Stains",
+        "calculus": "Dental Calculus (Tartar)",
+        "fluorosis": "Dental Fluorosis",
+        "nad": "Normal Dental Status (NAD)",
+        "wnl": "Within Normal Limits"
     },
     "referral": {
         "ref": "Referred to Specialist",
@@ -110,6 +169,19 @@ SCOPED_DISAMBIGUATION = {
         "f/u": "Follow-Up Advised",
         "fu": "Follow-Up Advised",
         "sos": "Review SOS if symptoms worsen"
+    },
+    "gender": {
+        "f": "Female",
+        "female": "Female",
+        "fem": "Female",
+        "girl": "Female",
+        "woman": "Female",
+        "m": "Male",
+        "male": "Male",
+        "boy": "Male",
+        "man": "Male",
+        "o": "Other",
+        "other": "Other"
     }
 }
 
@@ -191,6 +263,65 @@ class ClinicalGlossaryService:
 
         raw_lower = raw.lower().strip()
 
+        # 0. Gender-scoped expansion and protection
+        # Prevents gender abbreviations like 'F' / 'M' from expanding to generic doctor abbreviations (e.g. 'Follow-up')
+        is_gender_context = (
+            scope == "gender"
+            or (field_key is not None and field_key.lower() in ("gender", "sex", "patient_gender"))
+        )
+        if is_gender_context:
+            resolved_gender = None
+            gender_map = SCOPED_DISAMBIGUATION.get("gender", {})
+            if raw_lower in gender_map:
+                resolved_gender = gender_map[raw_lower]
+            else:
+                m_box = re.match(r'^(?:\[[xX✓✔\s*]\]|\([xX✓✔\s*]\)|[✓✔☑])\s*(f|female|fem|girl|woman|m|male|boy|man|o|other)$', raw_lower)
+                if not m_box:
+                    m_box = re.match(r'^(f|female|fem|girl|woman|m|male|boy|man|o|other)\s*(?:\[[xX✓✔\s*]\]|\([xX✓✔\s*]\)|[✓✔☑])$', raw_lower)
+                if m_box:
+                    token = m_box.group(1)
+                    resolved_gender = gender_map.get(token)
+
+            if resolved_gender:
+                return {
+                    "raw_text": raw,
+                    "normalized": resolved_gender,
+                    "is_expanded": (raw != resolved_gender),
+                    "scope_used": "gender",
+                    "rule_applied": f"gender_{raw_lower}_{resolved_gender.lower()}",
+                    "status": "exact" if raw == resolved_gender else "scoped_expansion"
+                }
+
+            # Unrecognized or ambiguous in gender context: preserve raw, flag new_term, never fall through to doctor short forms
+            return {
+                "raw_text": raw,
+                "normalized": raw,
+                "is_expanded": False,
+                "scope_used": "gender",
+                "rule_applied": "unrecognized_gender_kept_as_written",
+                "status": "new_term"
+            }
+
+        # 0.1 Clinical symbols expansion (+, -, ++, +++, ↑, ↓, −)
+        CLINICAL_SYMBOLS = {
+            "+": "Present / Positive (+)",
+            "++": "Moderate (++)",
+            "+++": "Severe / Strongly Positive (+++)",
+            "-": "Absent / Negative (-)",
+            "−": "Absent / Negative (-)",
+            "↑": "Increased / Elevated (↑)",
+            "↓": "Decreased / Low (↓)",
+        }
+        if raw in CLINICAL_SYMBOLS:
+            return {
+                "raw_text": raw,
+                "normalized": CLINICAL_SYMBOLS[raw],
+                "is_expanded": True,
+                "scope_used": scope or "symbols",
+                "rule_applied": f"clinical_symbol_{raw}",
+                "status": "exact"
+            }
+
         # 1. Field-scoped expansion (Highest Priority)
         # Prevents 'OD' in meds from becoming 'Right Eye'
         if scope and scope in SCOPED_DISAMBIGUATION:
@@ -205,20 +336,102 @@ class ClinicalGlossaryService:
                     "status": "scoped_expansion"
                 }
 
-        # 2. General Doctor Short Forms Lookup
-        # Exact match in short forms table
-        clean_token = re.sub(r'[^a-z0-9]', '', raw_lower)
-        for abbrev, entry in self.short_forms.items():
-            abbrev_clean = re.sub(r'[^a-z0-9]', '', abbrev.lower())
-            if abbrev_clean and clean_token == abbrev_clean:
+        # 1.5 Common clinical shorthand with slashes & camp abbreviations (Unscoped Fallback)
+        SLASH_SHORTHANDS = {
+            "c/o": "Complaints of",
+            "co": "Complaints of",
+            "no c/o": "No complaints",
+            "no co": "No complaints",
+            "h/o": "History of",
+            "ho": "History of",
+            "no h/o": "No history of",
+            "no ho": "No history of",
+            "p/h": "Past History",
+            "ph": "Past History",
+            "f/h": "Family History",
+            "fh": "Family History",
+            "fh/o": "Family history of",
+            "fho": "Family history of",
+            "k/c/o": "Known case of",
+            "kco": "Known case of",
+            "n/k/c/o": "Not a known case of",
+            "nkco": "Not a known case of",
+            "b/l": "Bilateral",
+            "bl": "Bilateral",
+            "u/l": "Unilateral",
+            "ul": "Unilateral",
+            "r/v": "Review Advised",
+            "rv": "Review Advised",
+            "f/u": "Follow-Up Advised",
+            "fu": "Follow-Up Advised",
+            "p/a": "Per Abdomen",
+            "pa": "Per Abdomen",
+            "o/e": "On Examination",
+            "oe": "On Examination",
+            "g/e": "General Examination",
+            "ge": "General Examination",
+            "dns": "Deviated Nasal Septum (DNS)",
+            "csom": "Chronic Suppurative Otitis Media (CSOM)",
+            "aom": "Acute Otitis Media (AOM)",
+            "urti": "Upper Respiratory Tract Infection",
+            "lrti": "Lower Respiratory Tract Infection",
+            "gerd": "Gastroesophageal Reflux Disease",
+            "rct": "Root Canal Treatment",
+            "caries": "Dental Caries",
+            "nad": "No Abnormality Detected",
+            "wnl": "Within Normal Limits",
+        }
+        if raw_lower in SLASH_SHORTHANDS:
+            return {
+                "raw_text": raw,
+                "normalized": SLASH_SHORTHANDS[raw_lower],
+                "is_expanded": True,
+                "scope_used": scope or "general_clinical",
+                "rule_applied": f"slash_shorthand_{raw_lower}",
+                "status": "general_expansion"
+            }
+
+        # 1.6 Eye/Ear Laterality shorthands (R -> Right, L -> Left)
+        is_laterality_context = (
+            scope in ("vision", "examination", "otoscopy")
+            or (field_key is not None and any(w in field_key.lower() for w in ("ear", "eye", "otoscope", "vision", "side")))
+        )
+        if is_laterality_context:
+            if raw_lower in ("r", "rt", "r."):
                 return {
                     "raw_text": raw,
-                    "normalized": entry["expansion"],
+                    "normalized": "Right",
                     "is_expanded": True,
-                    "scope_used": entry.get("group"),
-                    "rule_applied": f"short_form_{abbrev}",
-                    "status": "general_expansion"
+                    "scope_used": scope or "examination",
+                    "rule_applied": "laterality_right",
+                    "status": "scoped_expansion"
                 }
+            if raw_lower in ("l", "lt", "l."):
+                return {
+                    "raw_text": raw,
+                    "normalized": "Left",
+                    "is_expanded": True,
+                    "scope_used": scope or "examination",
+                    "rule_applied": "laterality_left",
+                    "status": "scoped_expansion"
+                }
+
+        # 2. General Doctor Short Forms Lookup
+        # Exact match in short forms table (guarding against single-letter slash-split noise)
+        clean_token = re.sub(r'[^a-z0-9]', '', raw_lower)
+        CORRUPTED_SINGLE_LETTERS = {"r", "l", "b", "p", "f", "k", "e", "g", "a", "u", "v", "c", "o", "h"}
+        if clean_token not in CORRUPTED_SINGLE_LETTERS:
+            for abbrev, entry in self.short_forms.items():
+                abbrev_clean = re.sub(r'[^a-z0-9]', '', abbrev.lower())
+                if abbrev_clean and clean_token == abbrev_clean:
+                    return {
+                        "raw_text": raw,
+                        "normalized": entry["expansion"],
+                        "is_expanded": True,
+                        "scope_used": entry.get("group"),
+                        "rule_applied": f"short_form_{abbrev}",
+                        "status": "general_expansion"
+                    }
 
         # 3. Exact match against Controlled Medical Terminology
         if raw_lower in self._term_lookup:

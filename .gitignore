@@ -61,3 +61,12 @@ docs/Medical_Terminology_Camp_Case_Sheets_AI_Reference_PMOS.docx
 
 # Personal reference media
 docs/references/ui_samples/*.mp4
+
+# Test and benchmark artifacts
+test_results/
+# IDE & Local Scratch
+.idea/
+scratch/
+scratch_*
+mobile_expo_backup_20261116/
+*.xml

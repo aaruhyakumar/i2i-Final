@@ -176,7 +176,7 @@ def test_export_with_type_query_param(client):
 def test_formula_injection_immunity_in_export(test_app, client):
     """Verify formula injection attacks (=CMD, +SUM, @ALERT) are safely escaped."""
     _, db_file = test_app
-    camp_dict = database.create_camp("Security Audit School", 50, "Today", target_group="paediatric", db_path=db_file)
+    camp_dict = database.create_camp("Security Audit School", 50, "Today", target_group="paediatric", community_id="org_default", db_path=db_file)
     camp_id = camp_dict["id"]
     record = database.insert_record(
         {

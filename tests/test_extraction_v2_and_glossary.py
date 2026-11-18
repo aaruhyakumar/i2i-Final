@@ -256,3 +256,40 @@ def test_pass2_skips_blanks_to_save_tokens():
     assert len(caller_invoked) == 0
     assert len(pass2_res["escalated_fields"]) == 0
 
+
+def test_exact_verbatim_text_preservation():
+    """Verify that clinical text is never extrapolated or augmented with unwritten details."""
+    pipe = default_extraction_pipeline
+
+    field_school = {"key": "school_name", "type": "short_text"}
+    res_school = pipe.validate_and_normalize_field(field_school, {"raw_text": "Delhi Public School", "confidence": 0.95})
+    assert res_school["normalized_value"] == "Delhi Public School"
+    assert "Sector 4" not in res_school["normalized_value"]
+
+    field_allergy = {"key": "known_allergies", "type": "yes_no_specify"}
+    res_allergy = pipe.validate_and_normalize_field(field_allergy, {"raw_text": "Dust (mild)", "confidence": 0.90})
+    assert res_allergy["normalized_value"] == "Dust (mild)"
+    assert "rhinitis" not in res_allergy["normalized_value"].lower()
+
+    field_advice = {"key": "dental_advice", "type": "short_text"}
+    res_advice = pipe.validate_and_normalize_field(field_advice, {"raw_text": "Pediatric Dentist rev", "confidence": 0.90})
+    assert res_advice["normalized_value"] == "Pediatric Dentist rev"
+
+
+def test_unilateral_ear_findings_never_distributed_without_bl():
+    """Verify unilateral ear findings are never distributed to the contralateral ear without explicit B/L."""
+    pipe = default_extraction_pipeline
+    field_rt = {"key": "otoscope_right_ear", "type": "short_text", "glossary_scope": "examination"}
+    field_lt = {"key": "otoscope_left_ear", "type": "short_text", "glossary_scope": "examination"}
+
+    # Case 1: Unilateral Wax in Right Ear only
+    rt_res = pipe.validate_and_normalize_field(field_rt, {"raw_text": "Wax", "confidence": 0.92})
+    lt_res = pipe.validate_and_normalize_field(field_lt, {"raw_text": "", "confidence": 1.0})
+    assert "Wax" in rt_res["normalized_value"]
+    assert lt_res["normalized_value"] is None
+
+    # Case 2: Explicit Bilateral Wax
+    bl_res = pipe.validate_and_normalize_field(field_rt, {"raw_text": "B/L Wax", "confidence": 0.92})
+    assert bl_res["normalized_value"] == "Bilateral Wax Impaction"
+
+

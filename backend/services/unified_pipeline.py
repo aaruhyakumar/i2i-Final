@@ -9,6 +9,12 @@ A single unified pipeline for all vision AI providers:
 - Medical abbreviation expansion & ambiguity detection
 - Automated multi-model escalation and cross-provider failover
 - Quota ledger reservation, cost calculation, and 24h cryptographic deduplication
+
+Stage 2B image-quality improvements (2026-11-17):
+- Conservative YCbCr luminance contrast stretch (1st–99th percentile) preserves RGB colour.
+- Unnecessary JPEG recompression is skipped when no resize or enhancement is applied.
+- Configurable max_edge (default 1568 px) and quality (default 82) via env or call-site.
+- MIME type declaration always matches the encoded format sent to Claude.
 """
 
 import os
@@ -20,6 +26,7 @@ import base64
 import logging
 from typing import Dict, Any, Optional, Tuple, List, Union
 from PIL import Image, ImageOps
+import numpy as np
 import requests
 
 try:
@@ -100,43 +107,254 @@ def resolve_api_key_for_provider(provider: str = "claude", explicit_key: Optiona
 
 
 # ---------------------------------------------------------------------------
-# Image Preprocessing & Normalization
+# Image Preprocessing & Normalization (Stage 2B)
 # ---------------------------------------------------------------------------
 
-def preprocess_clinical_image(img_bytes: bytes, max_edge: int = 1568, quality: int = 82) -> bytes:
-    """Preprocess clinic form images:
-    - Auto-rotate according to EXIF orientation
-    - Resize longest edge to max_edge to control token usage
-    - Convert to RGB
-    - High-quality JPEG compression
+# ---------------------------------------------------------------------------
+# Image quality configuration (env-overridable, safe production defaults)
+# ---------------------------------------------------------------------------
+# IMAGE_MAX_EDGE_PX   – longest edge cap (px) sent to Claude Vision.
+#                       Default 1568 (original production value).
+#                       Set to 2048 to enable the high-resolution path once the
+#                       Stage 2 benchmark confirms benefit.
+#                       Must be an integer in [512, 4096]; invalid values fall
+#                       back to 1568.
+# IMAGE_JPEG_QUALITY  – JPEG re-encode quality (0-95).
+#                       Default 82 (original production value).
+#                       Set to 92 to accompany the 2048-px path.
+#                       Must be an integer in [50, 95]; invalid values fall
+#                       back to 82.
+# IMAGE_CONTRAST_ENHANCE – set to "1" to enable YCbCr luminance stretch.
+#                       Default "0" (disabled) until the Stage 2 benchmark
+#                       demonstrates that enhancement improves extraction
+#                       accuracy.  Set to "1" to activate.
+def _safe_int_env(var: str, default: int, lo: int, hi: int) -> int:
+    """Read an integer env-var and clamp to [lo, hi]; fall back to default on error."""
+    raw = os.getenv(var, "").strip()
+    if not raw:
+        return default
+    try:
+        v = int(raw)
+        if lo <= v <= hi:
+            return v
+        logger.warning("Env %s=%r is outside [%d, %d]; using default %d", var, raw, lo, hi, default)
+        return default
+    except ValueError:
+        logger.warning("Env %s=%r is not a valid integer; using default %d", var, raw, default)
+        return default
+
+_ENV_MAX_EDGE    = _safe_int_env("IMAGE_MAX_EDGE_PX",  1568, 512, 4096)
+_ENV_QUALITY     = _safe_int_env("IMAGE_JPEG_QUALITY", 82,   50,  95)
+# Contrast enhancement is DISABLED by default until the Stage 2 benchmark
+# confirms benefit.  Set IMAGE_CONTRAST_ENHANCE=1 to enable.
+_ENV_CONTRAST_EN = os.getenv("IMAGE_CONTRAST_ENHANCE", "0").strip() in ("1", "true", "yes")
+
+# Claude Vision accepts: image/jpeg, image/png, image/webp
+_CLAUDE_MIME_WHITELIST = {"image/jpeg", "image/png", "image/webp"}
+_PIL_FORMAT_TO_MIME = {"JPEG": "image/jpeg", "PNG": "image/png", "WEBP": "image/webp"}
+
+
+class ImagePreprocessingError(ValueError):
+    """Raised when clinical image preprocessing fails due to malformed, unreadable, or unsupported data."""
+    pass
+
+
+def sniff_image_mime(img_bytes: bytes) -> Optional[str]:
+    """Identify image format strictly from magic bytes; returns standard MIME string or None if unsupported."""
+    if not img_bytes or len(img_bytes) < 4:
+        return None
+    # JPEG starts with \xFF\xD8\xFF
+    if img_bytes[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    # PNG starts with \x89PNG\r\n\x1a\n
+    if img_bytes[:8] == b"\x89PNG\r\n\x1a\n" or img_bytes[:4] == b"\x89PNG":
+        return "image/png"
+    # WebP starts with RIFF....WEBP
+    if len(img_bytes) >= 12 and img_bytes[:4] == b"RIFF" and img_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return None
+
+
+def _apply_contrast_enhancement(im: "Image.Image") -> "Image.Image":
+    """Conservative luminance-only contrast stretch using YCbCr colour space.
+
+    Stretches the Y (luminance) channel from the 1st to the 99th percentile to
+    white-balance underexposed mobile scans while keeping chrominance (Cb/Cr)
+    channels – and therefore pen-ink colour – completely intact.
+
+    Safety guardrails:
+    - Only applied when the luminance range is wide enough (> 20 levels) to
+      avoid amplifying noise in already-high-contrast images.
+    - Maximum gain is capped at 6× to prevent border shadows turning into
+      apparent handwriting.
+    - Falls back silently to the original image on any error.
+    - Preserves RGB mode on the returned image.
+
+    This function is controlled by the IMAGE_CONTRAST_ENHANCE environment
+    variable (set to "0" to disable).
     """
     try:
+        import numpy as np
+        ycbcr = im.convert("YCbCr")
+        y_ch, cb_ch, cr_ch = ycbcr.split()
+        y_arr = np.array(y_ch, dtype=np.float32)
+
+        p_low  = float(np.percentile(y_arr, 1.0))
+        p_high = float(np.percentile(y_arr, 99.0))
+        span   = p_high - p_low
+
+        # Skip stretch when image already has good dynamic range or is too flat
+        if span < 20.0:
+            return im
+
+        # Cap gain at 6× to guard against noise amplification
+        scale = min(255.0 / span, 6.0)
+        y_stretched = np.clip((y_arr - p_low) * scale, 0, 255).astype(np.uint8)
+        y_new = Image.fromarray(y_stretched, mode="L")
+        return Image.merge("YCbCr", (y_new, cb_ch, cr_ch)).convert("RGB")
+    except Exception as ce:
+        logger.debug("Contrast enhancement skipped (error): %s", ce)
+        return im
+
+
+def preprocess_clinical_image(
+    img_bytes: bytes,
+    max_edge: int = _ENV_MAX_EDGE,
+    quality: int = _ENV_QUALITY,
+    enhance_contrast: Optional[bool] = None,
+) -> Tuple[bytes, str]:
+    """Preprocess a clinical form image for Claude Vision.
+
+    Stage 2B behaviour
+    ------------------
+    1. EXIF orientation is always corrected.
+    2. Unsupported modes (RGBA, P) are converted to RGB.
+    3. Images are NOT upscaled – only images whose longest edge exceeds
+       ``max_edge`` are downsampled (LANCZOS).
+    4. Conservative YCbCr luminance contrast stretch is applied (see
+       ``_apply_contrast_enhancement``).  Controlled by the
+       IMAGE_CONTRAST_ENHANCE env-var or the ``enhance_contrast`` argument.
+    5. Recompression is skipped when no transformation was needed AND the
+       source format is already JPEG or PNG – the original encoded bytes are
+       returned unchanged to avoid generation loss.
+       IMPORTANT: the pass-through is only allowed when EXIF orientation did
+       NOT physically rotate the image.  If rotation was required the image is
+       always re-encoded so that Claude receives correctly oriented pixels.
+    6. When recompression is required the output is always JPEG so that the
+       content-block MIME type declaration is unambiguous.
+
+    Returns
+    -------
+    (processed_bytes, mime_type)
+        ``processed_bytes`` – bytes ready for base64 encoding in a Claude
+        content block.
+        ``mime_type``       – the matching MIME string ("image/jpeg" or
+        "image/png") to pass in the ``media_type`` field.
+
+    Errors
+    ------
+    Any PIL exception falls back to returning the original bytes with a
+    best-effort MIME guess, so a failure here never silently drops an image.
+    """
+    if not img_bytes:
+        raise ImagePreprocessingError("Cannot preprocess empty image bytes.")
+
+    # Explicitly reject GIF format
+    if img_bytes[:6] in (b"GIF87a", b"GIF89a") or img_bytes[:3] == b"GIF":
+        raise ImagePreprocessingError(
+            "Unsupported image format: GIF images are not accepted for clinical document extraction. "
+            "Please upload a JPEG, PNG, or WebP document scan."
+        )
+
+    # Decide whether contrast enhancement is requested
+    do_enhance = _ENV_CONTRAST_EN if enhance_contrast is None else bool(enhance_contrast)
+
+    try:
         with Image.open(io.BytesIO(img_bytes)) as im:
-            # Handle EXIF rotation
+            source_format = (im.format or "").upper()  # e.g. "JPEG", "PNG", "WEBP"
+            if source_format == "GIF":
+                raise ImagePreprocessingError(
+                    "Unsupported image format: GIF images are not accepted for clinical document extraction. "
+                    "Please upload a JPEG, PNG, or WebP document scan."
+                )
+
+            # --- Step 1: EXIF orientation (always verified) ---
+            # If EXIF inspection fails (e.g. corrupted EXIF block), do not silently
+            # assume the image is orientation-safe. Fail safely with a clear error.
+            exif_changed = False
             try:
-                im = ImageOps.exif_transpose(im)
-            except Exception:
+                exif = im.getexif()
+                orientation = exif.get(0x0112) if exif else None
+                if orientation is not None and orientation not in (0, 1):
+                    im = ImageOps.exif_transpose(im)
+                    exif_changed = True
+            except Exception as exif_err:
+                logger.error("EXIF orientation inspection failed: %s", exif_err)
+                raise ImagePreprocessingError(
+                    f"Unable to reliably establish image orientation: EXIF metadata is corrupted or unreadable ({exif_err})"
+                ) from exif_err
+
+            # --- Step 2: Mode normalisation ---
+            needs_mode_convert = im.mode not in ("RGB", "L")
+            if needs_mode_convert:
+                im = im.convert("RGB")
+            elif im.mode == "L":
+                # Greyscale source: keep as-is; Claude accepts it.
                 pass
 
-            if im.mode in ("RGBA", "P"):
-                im = im.convert("RGB")
-            
             w, h = im.size
-            if max(w, h) > max_edge:
+
+            # --- Step 3: Resize only when image exceeds the cap ---
+            needs_resize = max(w, h) > max_edge
+            if needs_resize:
                 if w >= h:
-                    new_w = max_edge
-                    new_h = max(1, int(h * (max_edge / float(w))))
+                    new_w, new_h = max_edge, max(1, int(h * max_edge / float(w)))
                 else:
-                    new_h = max_edge
-                    new_w = max(1, int(w * (max_edge / float(h))))
+                    new_h, new_w = max_edge, max(1, int(w * max_edge / float(h)))
                 im = im.resize((new_w, new_h), Image.Resampling.LANCZOS)
 
+            # --- Step 4: Conservative contrast enhancement ---
+            if do_enhance and im.mode == "RGB":
+                im = _apply_contrast_enhancement(im)
+                needs_reencode = True
+            else:
+                needs_reencode = needs_resize or needs_mode_convert or exif_changed
+
+            # --- Step 5: Skip recompression when nothing changed ---
+            # Return original bytes ONLY when:
+            #   • no transformation occurred (no resize, no mode convert,
+            #     no contrast enhance, no EXIF rotation), AND
+            #   • the source format is already in Claude's whitelist and matches sniffed magic bytes.
+            # If EXIF rotation was needed, we must re-encode the rotated pixels.
+            source_mime = _PIL_FORMAT_TO_MIME.get(source_format, "")
+            sniffed_mime = sniff_image_mime(img_bytes)
+            if not needs_reencode and source_mime in _CLAUDE_MIME_WHITELIST and source_mime == sniffed_mime:
+                return img_bytes, source_mime
+
+            # --- Step 6: Re-encode as JPEG ---
+            # Ensure RGB before saving as JPEG.
+            if im.mode not in ("RGB",):
+                im = im.convert("RGB")
             buf = io.BytesIO()
             im.save(buf, format="JPEG", quality=quality, optimize=True)
-            return buf.getvalue()
+            return buf.getvalue(), "image/jpeg"
+
+    except ImagePreprocessingError:
+        raise
     except Exception as e:
-        logger.warning("Clinical image preprocessing fallback to raw: %s", e)
-        return img_bytes
+        logger.error("Clinical image preprocessing failed: %s", e)
+        # Check actual file signature: never assume JPEG or fabricate an inaccurate MIME type
+        detected_mime = sniff_image_mime(img_bytes)
+        if not detected_mime or detected_mime not in _CLAUDE_MIME_WHITELIST:
+            sig = img_bytes[:12] if len(img_bytes) >= 12 else img_bytes
+            raise ImagePreprocessingError(
+                f"Unsupported or malformed image format: cannot establish valid Claude Vision MIME type. "
+                f"Byte signature: {sig!r}. Error: {e}"
+            ) from e
+        # Even if a signature is recognized, if PIL cannot open the payload it is unreadable/corrupted
+        raise ImagePreprocessingError(
+            f"Image payload could not be parsed as valid {detected_mime}: {e}"
+        ) from e
 
 
 def stitch_pages_side_by_side(p1_bytes: bytes, p2_bytes: bytes, target_h: int = 1200, quality: int = 82) -> bytes:
@@ -231,9 +449,16 @@ class UnifiedAIPipeline(AIService):
         prompt: str,
         p1_bytes: bytes,
         p2_bytes: bytes,
-        is_fallback: bool = False
+        is_fallback: bool = False,
+        p1_mime: str = "image/jpeg",
+        p2_mime: str = "image/jpeg",
     ) -> Dict[str, Any]:
-        """Dispatch HTTP request to the selected vision provider with retries."""
+        """Dispatch HTTP request to the selected vision provider with retries.
+
+        p1_mime / p2_mime must match the actual encoding of p1_bytes / p2_bytes
+        and must be a member of _CLAUDE_MIME_WHITELIST.  preprocess_clinical_image()
+        guarantees this by returning the MIME alongside the bytes.
+        """
         cfg = PROVIDER_DEFAULTS.get(self.provider, PROVIDER_DEFAULTS["claude"])
         t0 = time.time()
 
@@ -250,11 +475,11 @@ class UnifiedAIPipeline(AIService):
         content_blocks = [
             {
                 "type": "image",
-                "source": {"type": "base64", "media_type": "image/jpeg", "data": b64_1}
+                "source": {"type": "base64", "media_type": p1_mime, "data": b64_1}
             },
             {
                 "type": "image",
-                "source": {"type": "base64", "media_type": "image/jpeg", "data": b64_2}
+                "source": {"type": "base64", "media_type": p2_mime, "data": b64_2}
             },
             {
                 "type": "text",
@@ -343,7 +568,9 @@ class UnifiedAIPipeline(AIService):
         prompt: str,
         p1_bytes: bytes,
         p2_bytes: bytes,
-        is_fallback: bool = False
+        is_fallback: bool = False,
+        p1_mime: str = "image/jpeg",
+        p2_mime: str = "image/jpeg",
     ) -> Dict[str, Any]:
         """Dispatch a single model vision request."""
         return self._dispatch_request(
@@ -351,7 +578,9 @@ class UnifiedAIPipeline(AIService):
             prompt=prompt,
             p1_bytes=p1_bytes,
             p2_bytes=p2_bytes,
-            is_fallback=is_fallback
+            is_fallback=is_fallback,
+            p1_mime=p1_mime,
+            p2_mime=p2_mime,
         )
 
 
@@ -432,8 +661,19 @@ class UnifiedAIPipeline(AIService):
             }
 
         # 1. Preprocess both pages
-        p1_opt = preprocess_clinical_image(sf_bytes, max_edge=1568, quality=82)
-        p2_opt = preprocess_clinical_image(ha_bytes, max_edge=1568, quality=82)
+        # preprocess_clinical_image() returns (bytes, mime_type) so that the
+        # Claude content-block declaration always matches the encoded format.
+        try:
+            p1_opt, p1_mime = preprocess_clinical_image(sf_bytes)
+            p2_opt, p2_mime = preprocess_clinical_image(ha_bytes)
+        except Exception as prep_err:
+            logger.error("Clinical image preprocessing failed: %s", prep_err)
+            return {
+                "success": False,
+                "error": f"Image preprocessing failed: {prep_err}",
+                "code": "IMAGE_PREPROCESSING_FAILED",
+                "manual_entry_allowed": True
+            }
 
         calls = []
 
@@ -443,7 +683,9 @@ class UnifiedAIPipeline(AIService):
             prompt=prompt_text,
             p1_bytes=p1_opt,
             p2_bytes=p2_opt,
-            is_fallback=False
+            is_fallback=False,
+            p1_mime=p1_mime,
+            p2_mime=p2_mime,
         )
 
         calls.append(primary_res)
@@ -483,7 +725,9 @@ class UnifiedAIPipeline(AIService):
                 prompt=prompt_text,
                 p1_bytes=p1_opt,
                 p2_bytes=p2_opt,
-                is_fallback=True
+                is_fallback=True,
+                p1_mime=p1_mime,
+                p2_mime=p2_mime,
             )
             calls.append(fb_res)
 

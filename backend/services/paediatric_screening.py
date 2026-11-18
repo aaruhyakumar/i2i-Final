@@ -20,6 +20,8 @@ Public API
   classify_paediatric_bp(systolic, diastolic, age_years, height_cm, sex) -> dict
   classify_atr(atr_degrees) -> dict
   classify_paediatric(fields) -> dict          # unified dispatcher (mirrors apply_server_side_flags)
+  parse_clinical_date(date_val) -> Optional[date]
+  calculate_completed_age(dob, exam_date) -> Optional[int]
 """
 
 from __future__ import annotations
@@ -27,6 +29,7 @@ from __future__ import annotations
 import math
 import re
 import logging
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger(__name__)
@@ -460,6 +463,67 @@ def _parse_sex(sex_val: Any) -> Optional[str]:
     return "F" if s[0] in ("F", "G", "W") else "M"
 
 
+def parse_clinical_date(date_val: Any) -> Optional[date]:
+    """Parse a clinical date string or object into a datetime.date.
+
+    Handles:
+      - datetime.date or datetime.datetime objects
+      - ISO formats: YYYY-MM-DD, YYYY/MM/DD
+      - Indian/UK clinical formats: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
+      - Single-digit day/month: D/M/YYYY, D-M-YYYY, D.M.YYYY
+      - 2-digit years: DD/MM/YY, DD-MM-YY (<= 50 -> 2000+yy, > 50 -> 1900+yy)
+
+    Returns None if missing, invalid, or unparseable.
+    """
+    if date_val is None:
+        return None
+    if isinstance(date_val, datetime):
+        return date_val.date()
+    if isinstance(date_val, date):
+        return date_val
+
+    s = str(date_val).strip()
+    if not s or s.lower() in ("none", "null", "nil", "n/a", "na", "unknown", "???"):
+        return None
+
+    parts = re.split(r"[-/.]", s)
+    if len(parts) == 3:
+        p0, p1, p2 = parts[0].strip(), parts[1].strip(), parts[2].strip()
+        if p0.isdigit() and p1.isdigit() and p2.isdigit():
+            try:
+                if len(p0) == 4:
+                    return date(int(p0), int(p1), int(p2))
+                dy = int(p0)
+                mo = int(p1)
+                yr = int(p2)
+                if len(p2) == 2:
+                    yr = 2000 + yr if yr <= 50 else 1900 + yr
+                return date(yr, mo, dy)
+            except (ValueError, OverflowError):
+                return None
+
+    return None
+
+
+def calculate_completed_age(dob: Optional[date], exam_date: Optional[date]) -> Optional[int]:
+    """Calculate completed integer years between DOB and examination date.
+
+    Formula:
+        years = exam_date.year - dob.year - ((exam_date.month, exam_date.day) < (dob.month, dob.day))
+
+    Returns:
+        Completed integer years (>= 0), or None if either date is missing or exam_date < dob.
+    """
+    if not dob or not exam_date:
+        return None
+    if exam_date < dob:
+        logger.warning("Examination date (%s) precedes date of birth (%s).", exam_date, dob)
+        return None
+
+    years = exam_date.year - dob.year - ((exam_date.month, exam_date.day) < (dob.month, dob.day))
+    return max(0, years)
+
+
 def classify_paediatric(fields: Dict[str, Any]) -> Dict[str, Any]:
     """Unified paediatric screening dispatcher.
 
@@ -495,19 +559,31 @@ def classify_paediatric(fields: Dict[str, Any]) -> Dict[str, Any]:
     atr_raw = _get("atr") or _get("atr_degrees") or _get("trunk_rotation") or _get("spinal_caliper_atr") or _get("spinal_caliper")
 
     age_f = _parse_float(age_raw)
-    if age_f is None:
-        dob_raw = _get("dob") or _get("date_of_birth")
-        if dob_raw:
-            try:
-                parts = re.findall(r"\d+", str(dob_raw))
-                if len(parts) >= 3:
-                    yr = int(parts[2]) if len(parts[2]) == 4 else (int(parts[0]) if len(parts[0]) == 4 else None)
-                    if yr and 1900 < yr < 2100:
-                        calc_age = 2024 - yr
-                        if 1.0 <= calc_age <= 21.0:
-                            age_f = float(calc_age)
-            except Exception:
-                pass
+    dob_raw = _get("dob") or _get("date_of_birth") or _get("patient_dob")
+    exam_raw = _get("exam_date") or _get("examination_date") or _get("date_of_examination") or _get("date")
+    d_dob = parse_clinical_date(dob_raw)
+    d_exam = parse_clinical_date(exam_raw)
+    calc_age_val = None
+    if d_dob and d_exam:
+        completed_years = calculate_completed_age(d_dob, d_exam)
+        if completed_years is not None and 0 <= completed_years <= 130:
+            calc_age_val = float(completed_years)
+
+    age_discrepancy_alert = None
+    if age_f is not None:
+        # Preserve explicitly recorded age; do not silently overwrite.
+        # If both are present and differ by >= 1 full year, flag discrepancy.
+        if calc_age_val is not None and abs(age_f - calc_age_val) >= 1.0:
+            rec_display = int(age_f) if age_f.is_integer() else age_f
+            calc_display = int(calc_age_val) if calc_age_val.is_integer() else calc_age_val
+            age_discrepancy_alert = (
+                f"Demographic Discrepancy [WARNING]: Explicitly recorded age ({rec_display}) "
+                f"conflicts with age derived from DOB and examination date ({calc_display})."
+            )
+    else:
+        # Age was not explicitly recorded, use derived age
+        age_f = calc_age_val
+
     sex_n = _parse_sex(sex_raw)
     wt_f = _parse_float(weight_raw)
     ht_f = _parse_float(height_raw)
@@ -522,26 +598,49 @@ def classify_paediatric(fields: Dict[str, Any]) -> Dict[str, Any]:
         ht_m = ht_f / 100.0
         bmi_val = round(wt_f / (ht_m ** 2), 1)
 
-    if is_paediatric:
+    if age_f is None:
+        bmi_cls = {
+            "centile": None,
+            "category": "Unknown",
+            "alert_level": "none",
+            "is_high_risk": False,
+            "staging": "Insufficient data: Valid age or DOB with examination date required for paediatric BMI classification.",
+            "age_used": None,
+            "sex_used": sex_n,
+            "note": "Age not established (missing or invalid DOB / examination date).",
+        }
+        bp_cls = {
+            "stage": "Unknown",
+            "alert_level": "none",
+            "is_high_risk": False,
+            "description": "Insufficient data: Valid age or DOB with examination date required for paediatric BP classification.",
+            "reference_p90_sys": None,
+            "reference_p95_sys": None,
+            "age_used": None,
+            "sex_used": sex_n,
+        }
+    elif age_f < 18.0:
         bmi_cls = classify_paediatric_bmi(bmi_val, age_f, sex_n)
         bp_cls = classify_paediatric_bp(sys_i, dia_i, age_f, ht_f, sex_n)
     else:
         bmi_cls = {
             "centile": None, "category": "Not Applicable", "alert_level": "none",
             "is_high_risk": False, "staging": "Use adult BMI classification for age ≥ 18.",
-            "age_used": None, "sex_used": None, "note": "Patient is ≥ 18 years."
+            "age_used": age_f, "sex_used": sex_n, "note": "Patient is ≥ 18 years."
         }
         bp_cls = {
             "stage": "Not Applicable", "alert_level": "none", "is_high_risk": False,
             "description": "Use adult BP classification for age ≥ 18.",
             "reference_p90_sys": None, "reference_p95_sys": None,
-            "age_used": None, "sex_used": None,
+            "age_used": age_f, "sex_used": sex_n,
         }
 
     atr_cls = classify_atr(atr_raw)
 
     # Aggregate human-readable alerts
     alerts: List[str] = []
+    if age_discrepancy_alert:
+        alerts.append(age_discrepancy_alert)
     if is_paediatric:
         bmi_al = bmi_cls.get("alert_level", "none")
         if bmi_al in ("advisory", "high", "critical", "warning"):
@@ -567,6 +666,10 @@ def classify_paediatric(fields: Dict[str, Any]) -> Dict[str, Any]:
         "bp_classification": bp_cls.get("stage"),
         "spinal_caliper_atr": atr_cls.get("atr_value") or atr_raw,
         "atr_degrees": atr_cls.get("atr_value") or atr_raw,
+        "age_years": age_f,
+        "age_recorded": age_raw,
+        "age_calculated": calc_age_val,
+        "has_age_discrepancy": (age_discrepancy_alert is not None),
     }
 
 

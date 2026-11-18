@@ -9,11 +9,14 @@ import {
   TouchableOpacity,
   TextInput,
   Platform,
-  Alert
+  Alert,
+  PermissionsAndroid,
+  Linking
 } from 'react-native';
 import { WebView } from 'react-native-webview';
+import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
 
-const DEFAULT_SERVER_URL = 'http://192.168.1.8:5001';
+const DEFAULT_SERVER_URL = 'http://127.0.0.1:5001';
 
 export default function App() {
   const [currentUrl, setCurrentUrl] = useState(DEFAULT_SERVER_URL);
@@ -23,6 +26,24 @@ export default function App() {
   const [hasError, setHasError] = useState(false);
   const [statusBarHidden, setStatusBarHidden] = useState(false);
   const webViewRef = useRef(null);
+  const pendingAuthUrlRef = useRef(null);
+  const isWebViewReadyRef = useRef(false);
+
+  const forwardAuthDeepLink = (url) => {
+    if (!url || typeof url !== 'string') return;
+    // Strictly restrict to approved ink2insight auth callback scheme/host
+    if (!url.startsWith('ink2insight://auth/callback') && !url.startsWith('ink2insight://auth')) {
+      return;
+    }
+    if (isWebViewReadyRef.current) {
+      sendToWebView({
+        type: 'AUTH_DEEP_LINK',
+        url: url
+      });
+    } else {
+      pendingAuthUrlRef.current = url;
+    }
+  };
 
   useEffect(() => {
     // Hide status bar during initial intro window fallback
@@ -30,8 +51,117 @@ export default function App() {
     const timer = setTimeout(() => {
       setStatusBarHidden(false);
     }, 11000);
-    return () => clearTimeout(timer);
+
+    // 1. Cold start: check initial deep-link URL that launched the app
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        forwardAuthDeepLink(url);
+      }
+    }).catch((err) => {
+      console.warn('Failed to retrieve initial deep link URL:', err);
+    });
+
+    // 2. Warm start: listen for runtime deep-links while app is open or backgrounded
+    const subscription = Linking.addEventListener('url', (event) => {
+      if (event && event.url) {
+        forwardAuthDeepLink(event.url);
+      }
+    });
+
+    return () => {
+      clearTimeout(timer);
+      if (subscription && typeof subscription.remove === 'function') {
+        subscription.remove();
+      }
+    };
   }, []);
+
+  const sendToWebView = (payload) => {
+    if (webViewRef.current) {
+      try {
+        const jsonStr = JSON.stringify(payload);
+        // Single, reliable communication mechanism via postMessage
+        webViewRef.current.postMessage(jsonStr);
+      } catch (err) {
+        console.error('Failed to send payload to WebView:', err);
+      }
+    }
+  };
+
+  const requestCameraPermission = async () => {
+    if (Platform.OS === 'android') {
+      try {
+        const checkResult = await PermissionsAndroid.check(PermissionsAndroid.PERMISSIONS.CAMERA);
+        if (checkResult) {
+          return true;
+        }
+        const granted = await PermissionsAndroid.request(
+          PermissionsAndroid.PERMISSIONS.CAMERA,
+          {
+            title: "Camera Access Required",
+            message: "Ink2Insights needs camera permission to scan clinical intake forms with ML Kit.",
+            buttonNeutral: "Ask Me Later",
+            buttonNegative: "Cancel",
+            buttonPositive: "OK"
+          }
+        );
+        return granted === PermissionsAndroid.RESULTS.GRANTED;
+      } catch (err) {
+        console.warn('Camera permission check error:', err);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  const handleNativeScan = async (data) => {
+    try {
+      const hasPermission = await requestCameraPermission();
+      if (!hasPermission) {
+        sendToWebView({
+          type: 'NATIVE_SCAN_ERROR',
+          scanId: Date.now(),
+          error: 'Camera permission was denied. Please allow camera access in Android Settings.',
+          targetPageIndex: (data && data.targetPageIndex !== undefined) ? data.targetPageIndex : null
+        });
+        return;
+      }
+
+      const maxDocs = (data && typeof data.maxNumDocuments === 'number') ? data.maxNumDocuments : 2;
+      const targetPageIndex = (data && data.targetPageIndex !== undefined) ? data.targetPageIndex : null;
+
+      const scanResult = await DocumentScanner.scanDocument({
+        maxNumDocuments: maxDocs,
+        croppedImageQuality: 90,
+        responseType: ResponseType.Base64,
+      });
+
+      const scanId = Date.now();
+      if (scanResult && scanResult.status === 'success' && scanResult.scannedImages && scanResult.scannedImages.length > 0) {
+        sendToWebView({
+          type: 'NATIVE_SCAN_SUCCESS',
+          scanId,
+          images: scanResult.scannedImages,
+          targetPageIndex: targetPageIndex
+        });
+      } else {
+        // User cancelled or closed the native scanner
+        sendToWebView({
+          type: 'NATIVE_SCAN_CANCELLED',
+          scanId,
+          targetPageIndex: targetPageIndex
+        });
+      }
+    } catch (err) {
+      console.warn('DocumentScanner execution error:', err);
+      sendToWebView({
+        type: 'NATIVE_SCAN_ERROR',
+        scanId: Date.now(),
+        error: err.message || 'Document scanning failed',
+        targetPageIndex: (data && data.targetPageIndex !== undefined) ? data.targetPageIndex : null
+      });
+    }
+  };
 
   const handleMessage = (event) => {
     try {
@@ -40,8 +170,22 @@ export default function App() {
         setStatusBarHidden(true);
       } else if (data.type === 'intro-end' || data.type === 'intro:end') {
         setStatusBarHidden(false);
+      } else if (data.type === 'START_NATIVE_SCAN') {
+        handleNativeScan(data);
+      } else if (data.type === 'WEBVIEW_READY') {
+        isWebViewReadyRef.current = true;
+        if (pendingAuthUrlRef.current) {
+          const authUrl = pendingAuthUrlRef.current;
+          pendingAuthUrlRef.current = null;
+          sendToWebView({
+            type: 'AUTH_DEEP_LINK',
+            url: authUrl
+          });
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      console.warn('WebView onMessage error:', e);
+    }
   };
 
   const handleReload = () => {
@@ -129,6 +273,7 @@ export default function App() {
           ref={webViewRef}
           source={{ uri: currentUrl }}
           style={styles.webView}
+          webviewDebuggingEnabled={true}
           javaScriptEnabled={true}
           domStorageEnabled={true}
           startInLoadingState={true}
@@ -138,10 +283,12 @@ export default function App() {
           onMessage={handleMessage}
           allowsBackForwardNavigationGestures={true}
           allowFileAccess={true}
-          allowFileAccessFromFileURLs={true}
-          allowUniversalAccessFromFileURLs={true}
+          allowFileAccessFromFileURLs={false}
+          allowUniversalAccessFromFileURLs={false}
           originWhitelist={['*']}
           mixedContentMode="always"
+          cacheEnabled={false}
+          cacheMode="LOAD_NO_CACHE"
           userAgent="Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
           cameraPermissionExpires={Date.now() + 3600000}
           onOpenFileChooser={() => true}
@@ -155,7 +302,20 @@ export default function App() {
             setLoading(true);
             setHasError(false);
           }}
-          onLoadEnd={() => setLoading(false)}
+          onLoadEnd={() => {
+            setLoading(false);
+            isWebViewReadyRef.current = true;
+            if (pendingAuthUrlRef.current) {
+              const authUrl = pendingAuthUrlRef.current;
+              pendingAuthUrlRef.current = null;
+              setTimeout(() => {
+                sendToWebView({
+                  type: 'AUTH_DEEP_LINK',
+                  url: authUrl
+                });
+              }, 400);
+            }
+          }}
           onError={(syntheticEvent) => {
             const { nativeEvent } = syntheticEvent;
             setLoading(false);

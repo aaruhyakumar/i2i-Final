@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="assets/logo.png">
-  <link rel="stylesheet" href="css/styles.css?v=20261116_bug07">
+  <link rel="stylesheet" href="css/styles.css?v=20261118_red_highlight">
   <!-- Ink 2 Insight Full-Screen Brand Intro -->
   <link rel="stylesheet" href="intro/intro.css?v=20261110">
   <script src="intro/intro.js"></script>
@@ -478,11 +478,111 @@
           <div class="reg-success-email-badge" id="reg-success-email">user@hospital.org</div>
 
           <div class="reg-success-note">
-            <b>Important:</b> Email verification is mandatory before signing in. Please check your inbox and spam folder, click the confirmation link, and then return here to log in.
+            <b>Important:</b> Email verification is mandatory before signing in. Please check your inbox and click the confirmation link. It will automatically reopen Ink2Insights and confirm your account.
           </div>
 
-          <button type="button" class="signin-submit-btn" style="width:100%;" onclick="window.app.go('login')">
+          <div id="reg-success-direct-link" style="display:none;"></div>
+
+          <button type="button" class="signin-submit-btn" style="width:100%;margin-top:12px;" onclick="window.app.go('login')">
             Back to Login
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3D. PASSWORD RESET SCREEN (Deep Link Callback) -->
+    <section class="scr" id="reset-password">
+      <div class="signin-wave-box">
+        <button type="button" class="signin-back-btn" onclick="window.app.go('login', true)" aria-label="Back to Login">
+          <svg viewBox="0 0 24 24" style="width:20px;height:20px;stroke:#fff;"><path d="M15 5l-7 7 7 7"/></svg>
+        </button>
+
+        <div class="signin-brand-center">
+          <img src="assets/logo.png" alt="Ink 2 Insight" class="signin-brand-logo-img" />
+        </div>
+
+        <svg viewBox="0 0 400 165" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="resetPassGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#0284C7"/>
+              <stop offset="50%" stop-color="#0369A1"/>
+              <stop offset="100%" stop-color="#0F172A"/>
+            </linearGradient>
+          </defs>
+          <rect width="400" height="165" fill="url(#resetPassGrad)" stroke="none"/>
+          <ellipse class="topo-ring" cx="200" cy="75" rx="140" ry="70" transform="rotate(-6 200 75)"/>
+          <ellipse class="topo-ring" cx="200" cy="75" rx="90" ry="45" transform="rotate(-6 200 75)"/>
+          <path class="wave-cutout" d="M 0,125 C 90,110 160,158 270,145 C 330,135 375,112 400,102 L 400,165 L 0,165 Z"/>
+        </svg>
+      </div>
+
+      <div class="signin-content-box">
+        <div class="reg-success-box" style="padding-top:16px;">
+          <div class="reg-success-icon-wrap" style="background:#E0F2FE;color:#0284C7;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+          </div>
+
+          <h2 class="reg-success-title" style="margin-bottom:6px;">Create New Password</h2>
+          <p class="reg-success-desc" style="margin-bottom:16px;">
+            Your recovery session has been verified. Enter your new password below.
+          </p>
+
+          <div id="reset-password-error" class="signin-error-banner" style="display:none;margin-bottom:12px;"></div>
+
+          <form id="form-reset-password" onsubmit="window.app.handleResetPasswordSubmit(event)">
+            <div class="signin-input-group" style="text-align:left;margin-bottom:12px;">
+              <label class="signin-label" for="reset-new-password">New Password</label>
+              <div class="signin-input-wrapper">
+                <input
+                  type="password"
+                  id="reset-new-password"
+                  class="signin-input"
+                  placeholder="At least 6 characters"
+                  required
+                  minlength="6"
+                  autocomplete="new-password"
+                />
+                <button
+                  type="button"
+                  class="signin-pw-toggle"
+                  onclick="window.app.togglePasswordVisibility('reset-new-password', this)"
+                  aria-label="Toggle password visibility"
+                >
+                  <svg viewBox="0 0 24 24" class="pw-eye-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="signin-input-group" style="text-align:left;margin-bottom:16px;">
+              <label class="signin-label" for="reset-confirm-password">Confirm New Password</label>
+              <div class="signin-input-wrapper">
+                <input
+                  type="password"
+                  id="reset-confirm-password"
+                  class="signin-input"
+                  placeholder="Re-enter new password"
+                  required
+                  minlength="6"
+                  autocomplete="new-password"
+                />
+                <button
+                  type="button"
+                  class="signin-pw-toggle"
+                  onclick="window.app.togglePasswordVisibility('reset-confirm-password', this)"
+                  aria-label="Toggle password visibility"
+                >
+                  <svg viewBox="0 0 24 24" class="pw-eye-icon"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <button type="submit" class="signin-submit-btn" style="width:100%;" id="btn-submit-reset-password">
+              Update Password
+            </button>
+          </form>
+
+          <button type="button" class="signin-back-link-btn" style="margin-top:16px;background:none;border:none;color:#64748B;font-size:13px;cursor:pointer;" onclick="window.app.go('login')">
+            ← Cancel and Return to Login
           </button>
         </div>
       </div>
@@ -852,26 +952,22 @@
         <p style="color:var(--mute);margin-top:10px;">Verify both captured pages belong to the same patient.</p>
         
         <div class="pair">
-          <div class="sheet" id="pairs-p1-preview" data-t="Page 1: Vitals & Details" style="position:relative;cursor:pointer;" onclick="window.app.retakePage(0)">
+          <div class="sheet" id="pairs-p1-preview" data-t="Page 1: Vitals & Details" style="position:relative;cursor:pointer;" onclick="window.app.retakePage(0)" title="Page 1: Vitals & Details (tap to retake)">
             <span id="pairs-t1-badge" class="tag" style="display:none;position:absolute;top:8px;left:8px;background:rgba(14,124,107,0.9);color:#fff;font-size:11px;font-weight:700;z-index:2;padding:3px 8px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,0.15);"></span>
-            <button type="button" class="pairs-retake-btn" id="btn-retake-p1" onclick="event.stopPropagation(); window.app.retakePage(0)" title="Retake Page 1">
-              🔄 Retake
-            </button>
           </div>
-          <div class="sheet" id="pairs-p2-preview" data-t="Page 2: Exam & Referral" style="position:relative;cursor:pointer;" onclick="window.app.retakePage(1)">
+          <div class="sheet" id="pairs-p2-preview" data-t="Page 2: Exam & Referral" style="position:relative;cursor:pointer;" onclick="window.app.retakePage(1)" title="Page 2: Exam & Referral (tap to retake)">
             <span id="pairs-t2-badge" class="tag" style="display:none;position:absolute;top:8px;left:8px;background:rgba(14,124,107,0.9);color:#fff;font-size:11px;font-weight:700;z-index:2;padding:3px 8px;border-radius:6px;box-shadow:0 2px 4px rgba(0,0,0,0.15);"></span>
-            <button type="button" class="pairs-retake-btn" id="btn-retake-p2" onclick="event.stopPropagation(); window.app.retakePage(1)" title="Retake Page 2">
-              🔄 Retake
-            </button>
           </div>
         </div>
 
         <div style="display:flex;gap:8px;margin:8px 0 10px;">
-          <button type="button" class="btn ghost" id="pairs-retake-p1-btn" style="flex:1;font-size:12px;padding:8px 6px;" onclick="window.app.retakePage(0)">
-            🔄 Retake Page 1
+          <button type="button" class="btn ghost" id="pairs-retake-p1-btn" style="flex:1;font-size:12px;padding:9px 8px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="window.app.retakePage(0)">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Retake Page 1
           </button>
-          <button type="button" class="btn ghost" id="pairs-retake-p2-btn" style="flex:1;font-size:12px;padding:8px 6px;" onclick="window.app.retakePage(1)">
-            🔄 Retake Page 2
+          <button type="button" class="btn ghost" id="pairs-retake-p2-btn" style="flex:1;font-size:12px;padding:9px 8px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;" onclick="window.app.retakePage(1)">
+            <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            Retake Page 2
           </button>
         </div>
 
@@ -1445,7 +1541,7 @@
         <div style="margin-top:20px;padding-bottom:10px;">
           <button class="btn" id="approve-btn" onclick="window.app.approveAndSaveRecord()">
             <svg viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M5 12l5 5L20 7"/></svg>
-            Approve & Bill Paper
+            Approve & Finalize Record
           </button>
           <button class="btn ghost" id="save-draft-btn" style="border:1.5px solid var(--line);margin-top:10px;" onclick="window.app.saveDraftReview()">
             <svg viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/></svg>
@@ -1531,10 +1627,6 @@
           <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
         </button>
         <b>Clinical MIS Spreadsheet</b>
-        <button class="btn" style="width:auto;padding:6px 12px;font-size:12px;background:#107C41;border-radius:10px;" onclick="window.app.executeExport()">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
-          Export .xlsx
-        </button>
       </div>
 
       <div class="body">
@@ -1554,9 +1646,7 @@
             <div>
               <label for="export-form-type-select" style="font-size:11px;font-weight:700;color:var(--mute);display:block;margin-bottom:3px;">Clinical Form Structure:</label>
               <select id="export-form-type-select" onchange="window.app.onExportFilterChanged()" style="font-size:12px;padding:6px 10px;height:36px;border-radius:10px;border:1px solid #CBD5E1;width:100%;background:#fff;">
-                <option value="">Auto-Detect from Camp Dataset</option>
-                <option value="adult">Adult Health Form (ASF-D&amp;A-ACS-9.1 / AC-9.1)</option>
-                <option value="paediatric">Paediatric Screening Form (ASF-D&amp;A-PCS-9.3 / PCS-9.7)</option>
+                <option value="paediatric" selected>Paediatric Screening Form (ASF-D&amp;A-PCS-9.3 / PCS-9.7)</option>
               </select>
             </div>
             <div>
@@ -1566,19 +1656,11 @@
               </select>
             </div>
           </div>
-          <!-- Fast Dedicated Export Actions -->
-          <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px;">
-            <button class="btn" style="flex:1;min-width:130px;height:34px;padding:0 10px;font-size:11px;background:#D81B60;border-radius:10px;white-space:nowrap;" onclick="window.app.exportAdultExcel()">
-              <svg viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
-              Adult .xlsx
-            </button>
-            <button class="btn" style="flex:1;min-width:130px;height:34px;padding:0 10px;font-size:11px;background:#0288D1;border-radius:10px;white-space:nowrap;" onclick="window.app.exportPaediatricExcel()">
-              <svg viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
-              Paediatric .xlsx
-            </button>
-            <button class="btn" style="flex:1;min-width:130px;height:34px;padding:0 10px;font-size:11px;background:#107C41;border-radius:10px;white-space:nowrap;" onclick="window.app.executeExport()">
-              <svg viewBox="0 0 24 24" style="width:13px;height:13px;"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
-              Export Selected .xlsx
+          <!-- Fast Dedicated Export Action -->
+          <div style="margin:8px 0 10px;">
+            <button class="btn" id="export-main-btn" style="width:100%;height:40px;font-size:13px;font-weight:700;background:#107C41;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 2px 6px rgba(16,124,65,0.25);" onclick="window.app.executeExport()">
+              <svg viewBox="0 0 24 24" style="width:16px;height:16px;fill:#fff;"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 20h16"/></svg>
+              Download Clinical MIS Spreadsheet (.xlsx)
             </button>
           </div>
           <div style="margin-top:6px;">
@@ -1633,28 +1715,6 @@
         <div id="export-camps-list">
           <!-- Populated from state -->
         </div>
-      </div>
-
-      <!-- Bottom Nav -->
-      <div class="nav">
-        <button id="nav-btn-home-3" onclick="window.app.go('home')">
-          <svg viewBox="0 0 24 24"><path d="M4 11l8-7 8 7v9H4z"/></svg>
-          Home
-        </button>
-        <button id="nav-btn-records-3" onclick="window.app.go('records')">
-          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
-          Records
-        </button>
-        <button class="go" aria-label="Scan a record" onclick="window.app.startScan()">
-          <svg viewBox="0 0 24 24" style="width:28px;height:28px;"><path d="M4 8V5a1 1 0 011-1h3M16 4h3a1 1 0 011 1v3M20 16v3a1 1 0 01-1 1h-3M8 20H5a1 1 0 01-1-1v-3M4 12h16"/></svg>
-        </button>
-        <button id="nav-btn-analytics-3" onclick="window.app.go('analytics')">
-          <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-          Analytics
-        </button>
-        <button id="nav-btn-settings-3" onclick="window.app.go('settings')">
-          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-          Profile
       </div>
     </section>
 
@@ -2076,7 +2136,7 @@
             <span style="font-size:20px;">📋</span>
             <h3 style="margin:0;font-size:16px;">Unrecognized Form Template</h3>
           </div>
-          <button type="button" class="modal-close-icon-btn" onclick="window.app.dismissUnsupportedModal(true)">
+          <button type="button" class="modal-close-icon-btn" onclick="window.app.dismissUnsupportedModal(false)">
             <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
         </div>
@@ -2087,8 +2147,7 @@
         <div style="margin-bottom:16px;">
           <label for="unsupported-form-select" style="font-weight:700;font-size:12.5px;color:var(--ink);display:block;margin-bottom:6px;">Select Form Template</label>
           <select id="unsupported-form-select" style="width:100%;padding:10px;border-radius:8px;border:1.5px solid var(--border,#cbd5e1);font-size:13.5px;background:var(--input-bg,#fff);color:var(--ink,#1e293b);">
-            <option value="tpl_adult_history_v9_1,tpl_adult_examination_v9_1">Adult Comprehensive Health Screening (v9.1)</option>
-            <option value="tpl_paediatric_history_v9_3,tpl_paediatric_examination_v9_7">Paediatric School Health Screening (v9.3 / v9.7)</option>
+            <option value="tpl_paediatric_history_v9_3,tpl_paediatric_examination_v9_7" selected>Paediatric School Health Screening (v9.3 / v9.7)</option>
           </select>
         </div>
 
@@ -2456,7 +2515,7 @@
             ✍️ Go Back and Fill In
           </button>
           <button class="btn ghost" style="border:1px solid #CBD5E1;border-radius:10px;font-weight:600;padding:10px;color:#DC2626;" onclick="window.app.confirmApproveDespiteMissing()">
-            ⚠️ Confirm &amp; Bill Paper (Mark Missing as NAD)
+            ⚠️ Confirm &amp; Approve Record (Mark Missing as NAD)
           </button>
         </div>
       </div>
@@ -2557,6 +2616,6 @@
   </div>
 
   <!-- Main Application Logic Module (Cache-Busted) -->
-  <script type="module" src="js/app.js?v=20261116_bug07"></script>
+  <script type="module" src="js/app.js?v=20261118_red_highlight"></script>
 </body>
 </html>

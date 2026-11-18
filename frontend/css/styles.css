@@ -123,7 +123,7 @@ h1, h2, h3, .d {
   }
 }
 
-/* Floating Viewport Toggle for Desktop */
+/* Floating Viewport Toggle for Desktop Only */
 .view-toggle-pill {
   position: fixed;
   top: 16px;
@@ -138,10 +138,10 @@ h1, h2, h3, .d {
   font-weight: 600;
   cursor: pointer;
   border: 1px solid rgba(255, 255, 255, 0.2);
-  display: none;
+  display: none !important;
 }
-@media (min-width: 768px) {
-  .view-toggle-pill { display: flex; align-items: center; gap: 6px; }
+@media (min-width: 900px) and (pointer: fine) {
+  .view-toggle-pill { display: flex !important; align-items: center; gap: 6px; }
 }
 
 /* Screen Management */
@@ -3160,15 +3160,24 @@ input:focus, select:focus, textarea:focus {
 
 .excel-sheet-tabs {
   display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   background: #F1F5F9;
   border-top: 1px solid #CBD5E1;
-  padding: 5px 8px 0;
-  gap: 4px;
+  padding: 6px 8px 0;
+  gap: 6px;
+  scrollbar-width: none;
+}
+.excel-sheet-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 .excel-sheet-tab {
-  padding: 7px 16px;
-  font-size: 12px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 8px 14px;
+  font-size: 11.5px;
   font-weight: 600;
   color: #64748B;
   border: 1px solid #CBD5E1;
@@ -3395,6 +3404,30 @@ input:focus, select:focus, textarea:focus {
   border-left: 3px solid #D81B60;
   text-align: left;
 }
+
+/* Flagged Alert & Irregular Field Highlighting (Red Styling Only) */
+.field-flagged-red,
+input.field-flagged-red,
+select.field-flagged-red,
+textarea.field-flagged-red,
+.form-control.field-flagged-red {
+  color: #DC2626 !important;
+  background-color: #FEF2F2 !important;
+  border: 1.5px solid #DC2626 !important;
+}
+
+.field-flagged-red:focus,
+input.field-flagged-red:focus,
+select.field-flagged-red:focus,
+textarea.field-flagged-red:focus,
+.form-control.field-flagged-red:focus {
+  color: #DC2626 !important;
+  background-color: #FEF2F2 !important;
+  border-color: #B91C1C !important;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25) !important;
+  outline: none !important;
+}
+
 
 
 

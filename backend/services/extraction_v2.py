@@ -30,7 +30,7 @@ from .glossary_service import default_glossary_service
 logger = logging.getLogger("i2i.extraction_v2")
 
 # Snellen Vision Acuity allowed list
-SNELLEN_VALUES = {"6/6", "6/9", "6/12", "6/18", "6/24", "6/36", "6/60", "CF", "HM", "PL", "NPL", "6/5"}
+SNELLEN_VALUES = {"6/6", "6/9", "6/12", "6/18", "6/24", "6/36", "6/60", "CF", "HM", "PL", "NPL", "6/5", "PL+", "PL-"}
 
 
 class ExtractionV2Pipeline:
@@ -114,6 +114,45 @@ Return strictly a JSON object."""
         scope = field_def.get("glossary_scope")
         validation_regex = field_def.get("validation")
 
+        # Explicitly ensure gender fields receive gender scope
+        if field_def.get("key") in ("gender", "sex", "patient_gender") or field_type == "gender":
+            scope = scope or "gender"
+
+        # Special clinical field handler: Spinal Caliper ATR (takes precedence over generic empty check)
+        if field_def.get("key") == "spinal_caliper_atr" or field_def.get("alert_hook") == "check_spinal_atr":
+            raw_clean = raw_text.strip().lower()
+            if raw_clean in ("nil", "nad", "n.a.d", "none", "-", "--", "na", "n/a", "no", "normal"):
+                return wrap_field_value(
+                    raw_text=raw_text,
+                    normalized_value=None,
+                    confidence=confidence,
+                    status="empty",
+                    crop_bbox=field_def.get("page_region"),
+                    rule_applied="atr_negative_noted"
+                )
+            if not raw_text or raw_clean in ("unreadable", "illegible", "???") or confidence < 0.25:
+                return wrap_field_value(raw_text=raw_text, normalized_value=None, confidence=confidence, is_unreadable=True)
+            deg_match = re.match(r'^\s*(\d+(?:\.\d+)?)\s*(?:°|deg|degrees)?\s*$', raw_text, re.IGNORECASE)
+            if deg_match:
+                deg_str = deg_match.group(1)
+                return wrap_field_value(
+                    raw_text=raw_text,
+                    normalized_value=deg_str,
+                    confidence=confidence,
+                    status="valid",
+                    crop_bbox=field_def.get("page_region"),
+                    rule_applied="atr_degree_parsed"
+                )
+            # Ambiguous or unparseable text: NEVER force to 0 (which would falsely clear screening)
+            return wrap_field_value(
+                raw_text=raw_text,
+                normalized_value=None,
+                confidence=confidence,
+                status="format_warning",
+                crop_bbox=field_def.get("page_region"),
+                rule_applied="atr_ambiguous_format_warning"
+            )
+
         # Invariant 1: Unreadable handling
         if not raw_text or raw_text.lower() in ("unreadable", "illegible", "???", "none", "nil"):
             if not raw_text or raw_text.lower() in ("none", "nil"):
@@ -123,13 +162,33 @@ Return strictly a JSON object."""
         # Apply Scoped Glossary Normalization
         norm_result = self.glossary.normalize_text(raw_text, scope=scope, field_key=field_def.get("key"))
         normalized_str = norm_result["normalized"]
+        is_expanded = norm_result.get("is_expanded", False)
 
         # Type-specific rules
         status = "valid"
+        rule_applied = norm_result["rule_applied"]
+
         if field_type == "fraction" and scope == "vision":
-            # Snellen fraction check
+            # Snellen fraction check and pre-printed '6/' denominator reconstruction
+            raw_upper = re.sub(r'\s+', '', raw_text.upper())
             clean_snellen = re.sub(r'\s+', '', normalized_str.upper())
-            if clean_snellen not in SNELLEN_VALUES:
+
+            if raw_upper in {"6", "9", "12", "18", "24", "36", "60", "5"}:
+                normalized_str = f"6/{raw_upper}"
+                clean_snellen = normalized_str
+                status = "valid"
+                rule_applied = "snellen_denominator_reconstructed"
+            elif (
+                clean_snellen in SNELLEN_VALUES
+                or raw_upper in SNELLEN_VALUES
+                or raw_upper.startswith("CF")
+                or clean_snellen.startswith("CF")
+                or clean_snellen.startswith("COUNTINGFINGERS")
+                or clean_snellen in ("HANDMOVEMENTS", "PERCEPTIONOFLIGHT", "NOPERCEPTIONOFLIGHT", "PL+", "PL-")
+                or raw_upper in ("HM", "PL", "NPL", "PL+", "PL-")
+            ):
+                status = "valid"
+            else:
                 status = "ambiguous_vision"
         elif field_type == "blood_pressure":
             # BP format check
@@ -142,6 +201,55 @@ Return strictly a JSON object."""
                     normalized_str = f"{sys_val}/{dia_val}"
             else:
                 status = "invalid_bp"
+        elif field_type in ("signature_present", "consent"):
+            raw_clean = raw_text.strip().lower()
+            if raw_clean in ("yes", "y", "true", "present", "signed", "✓", "✔", "☑", "[x]", "[x]", "/", "|"):
+                normalized_str = "Yes"
+                status = "valid"
+                rule_applied = "checkbox_affirmative"
+            elif raw_clean in ("no", "n", "false", "absent", "unsigned", "✗", "x"):
+                normalized_str = "No"
+                status = "valid"
+                rule_applied = "checkbox_negative"
+        elif field_type == "system_check":
+            raw_clean = raw_text.strip().lower()
+            if raw_clean in ("normal", "n", "wnl", "w.n.l", "clear", "intact", "nil", "none"):
+                normalized_str = "Normal"
+                status = "valid"
+                rule_applied = "system_normal"
+            elif raw_clean in ("nad", "n.a.d"):
+                if field_def.get("key") in ("sys_respiratory", "respiratory_system", "respiratory"):
+                    normalized_str = "No Abnormality Detected"
+                else:
+                    normalized_str = "Normal"
+                status = "valid"
+                rule_applied = "system_normal"
+            elif raw_clean in ("abnormal", "abn", "ab"):
+                normalized_str = "Abnormal"
+                status = "valid"
+                rule_applied = "system_abnormal"
+            elif is_expanded and normalized_str:
+                status = "valid"
+        elif field_def.get("key") in ("gender", "sex", "patient_gender") or field_type == "gender":
+            allowed = field_def.get("options") or ["Male", "Female", "Other"]
+            if normalized_str in allowed:
+                status = "valid"
+            else:
+                status = "format_warning"
+        elif field_type == "option_list" and field_def.get("options"):
+            options = field_def.get("options", [])
+            # Priority 1: Direct match against raw_text (preserves clean 'Normal' / 'Abnormal' before expansion)
+            raw_matched_opt = next((opt for opt in options if opt.lower() == raw_text.strip().lower()), None)
+            if raw_matched_opt:
+                normalized_str = raw_matched_opt
+                status = "valid"
+            else:
+                matched_opt = next((opt for opt in options if opt.lower() == normalized_str.lower() or normalized_str.lower().startswith(opt.lower())), None)
+                if matched_opt:
+                    normalized_str = matched_opt
+                    status = "valid"
+                else:
+                    status = "format_warning"
         elif validation_regex:
             if not re.search(validation_regex, normalized_str, re.IGNORECASE):
                 status = "format_warning"
@@ -152,7 +260,7 @@ Return strictly a JSON object."""
             confidence=confidence,
             status=status,
             crop_bbox=field_def.get("page_region"),
-            rule_applied=norm_result["rule_applied"]
+            rule_applied=rule_applied
         )
 
     def process_extracted_payload(
@@ -185,7 +293,7 @@ Return strictly a JSON object."""
                 if field_def.get("required") and (not processed["raw_text"] or processed["status"] == "unreadable"):
                     missing_fields.append(key)
 
-                if processed["confidence"] < 0.60 or processed["status"] in ("unreadable", "format_warning", "implausible_vitals"):
+                if processed["confidence"] < 0.60 or processed["status"] not in ("valid", "empty"):
                     uncertain_fields.append(key)
 
         data_dict = {k: v.get("normalized_value") for k, v in normalized_fields.items()}
