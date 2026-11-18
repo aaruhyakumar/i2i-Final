@@ -16,7 +16,7 @@ import {
 import { WebView } from 'react-native-webview';
 import DocumentScanner, { ResponseType } from 'react-native-document-scanner-plugin';
 
-const DEFAULT_SERVER_URL = 'http://127.0.0.1:5001';
+const DEFAULT_SERVER_URL = 'https://i2i-final.onrender.com';
 
 export default function App() {
   const [currentUrl, setCurrentUrl] = useState(DEFAULT_SERVER_URL);
