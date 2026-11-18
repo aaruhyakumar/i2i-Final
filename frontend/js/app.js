@@ -3105,7 +3105,7 @@ function proceedToPairsScreen() {
         console.warn('Server detected quality issue but proceeding anyway (demo mode)');
         // SKIP the modal - just retry with bypass
         state.qualityBypassed = true;
-        extractDocumentPages();
+        saveAndExtract();
         return;
       }
 
@@ -3617,11 +3617,26 @@ function proceedToPairsScreen() {
     }
   }
 
-  export function renderFocusedCropSnippets(record) {
+  export async function renderFocusedCropSnippets(record) {
     if (!record) return;
     const uncertain = record.uncertain_fields || [];
-    const p1Src = record.page1_url || record.page1_preview || $('review-p1-img')?.src;
-    const p2Src = record.page2_url || record.page2_preview || $('review-p2-img')?.src;
+    let p1Src = record.page1_url || record.page1_preview || $('review-p1-img')?.src;
+    let p2Src = record.page2_url || record.page2_preview || $('review-p2-img')?.src;
+
+    if (p1Src) {
+      try {
+        p1Src = await getFileBlobUrl(p1Src);
+      } catch (err) {
+        console.warn('Could not resolve blob URL for page 1 snippet:', err);
+      }
+    }
+    if (p2Src) {
+      try {
+        p2Src = await getFileBlobUrl(p2Src);
+      } catch (err) {
+        console.warn('Could not resolve blob URL for page 2 snippet:', err);
+      }
+    }
 
     const fieldCropDefs = {
       'person_name': { canvasId: 'crop-canvas-name', boxId: 'crop-preview-name', src: p1Src, region: { x: 0.08, y: 0.04, w: 0.55, h: 0.05 } },
@@ -3641,7 +3656,9 @@ function proceedToPairsScreen() {
       if (uncertain.includes(fieldKey) && def.src) {
         box.style.display = 'block';
         const img = new Image();
-        img.crossOrigin = 'anonymous';
+        if (!def.src.startsWith('blob:') && !def.src.startsWith('data:')) {
+          img.crossOrigin = 'anonymous';
+        }
         img.onload = () => {
           const sx = def.region.x * img.naturalWidth;
           const sy = def.region.y * img.naturalHeight;
@@ -3651,6 +3668,9 @@ function proceedToPairsScreen() {
           canvas.height = Math.round(canvas.width * (sh / sw));
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
+        };
+        img.onerror = (e) => {
+          console.warn(`Failed loading image snippet for ${fieldKey}:`, e);
         };
         img.src = def.src;
       } else {

@@ -264,6 +264,21 @@ def create_app(db_path: Optional[str] = None) -> Flask:
                 tok = request.args.get("token")
                 valid, file_org = database.verify_signed_file_token(tok, file_id)
                 if not valid:
+                    # Fallback: check if tok is a standard JWT / auth token
+                    from backend.services.auth_service import safe_decode_token, extract_claims
+                    payload, err = safe_decode_token(tok)
+                    if payload and not err:
+                        try:
+                            claims = extract_claims(payload)
+                            g.current_user = claims
+                            g.user_id = claims["user_id"]
+                            g.user_role = claims["role"]
+                            g.org_id = claims.get("org_id")
+                            g.community_id = claims.get("community_id")
+                            g.community_ids = claims.get("community_ids", [])
+                            return None
+                        except Exception:
+                            pass
                     return jsonify({
                         "error": "unauthorized",
                         "message": "Invalid or expired signed file token.",
@@ -1035,7 +1050,8 @@ def create_app(db_path: Optional[str] = None) -> Flask:
         created_by_uuid = str(user_id) if is_valid_uuid(user_id) else None
         created_by_display = getattr(g, 'current_user', {}).get("name") or str(user_id or 'demo_user')
 
-        if is_supabase_enabled():
+        camp = None
+        if is_supabase_enabled() and is_valid_uuid(community_id):
             try:
                 camp = supabase_service.create_camp(
                     name=name,
@@ -1046,36 +1062,33 @@ def create_app(db_path: Optional[str] = None) -> Flask:
                     community_id=community_id,
                     created_by=created_by_uuid
                 )
-                # Also persist locally in SQLite for resilience using the exact same ID
-                try:
-                    database.create_camp(
-                        name, expected, date_str,
-                        location=location,
-                        created_by=created_by_display,
-                        camp_id=camp.get("id"),
-                        target_group=target_group,
-                        community_id=community_id,
-                        db_path=db_path
-                    )
-                except Exception as db_err:
-                    logger.warning("Local camp mirror warning: %s", db_err)
-                return jsonify(camp), 201
             except Exception as e:
-                logger.error("Failed to create camp in Supabase: %s", e)
-                return jsonify({
-                    "error": "database_error",
-                    "message": f"Failed to create camp in primary database: {str(e)}",
-                    "code": "SUPABASE_CAMP_CREATION_FAILED"
-                }), 500
+                logger.warning("Failed to create camp in Supabase: %s; falling back to SQLite", e)
+                camp = None
 
-        camp = database.create_camp(
-            name, expected, date_str,
-            location=location,
-            created_by=created_by_display,
-            target_group=target_group,
-            community_id=community_id,
-            db_path=db_path
-        )
+        if not camp:
+            camp = database.create_camp(
+                name, expected, date_str,
+                location=location,
+                created_by=created_by_display,
+                target_group=target_group,
+                community_id=community_id,
+                db_path=db_path
+            )
+        else:
+            try:
+                database.create_camp(
+                    name, expected, date_str,
+                    location=location,
+                    created_by=created_by_display,
+                    camp_id=camp.get("id"),
+                    target_group=target_group,
+                    community_id=community_id,
+                    db_path=db_path
+                )
+            except Exception as db_err:
+                logger.warning("Local camp mirror warning: %s", db_err)
+
         return jsonify(camp), 201
 
     @app.route("/api/camps/<camp_id>", methods=["GET"])
