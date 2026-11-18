@@ -50,6 +50,7 @@ Rules:
 - If you cannot read it, return [null, a number below 0.5].
 - Yes or No fields return exactly 'Yes', 'No' or null.
 - Normal or abnormal fields return exactly 'Normal', 'Abnormal' or null, with details in the _d field.
+- Abdomen and CNS Examination: Return strictly "Normal" or "NAD", not both combined (never "Normal (NAD)" or "Normal / NAD"). Do not extract or include "Existing" in abdomen.
 - Copy numbers exactly as written. Do not convert units.
 - Doctors' shorthand may appear: BP, PR, HR, Wt, Ht, RBS, NAD, WNL, HTN, T2DM, Adv, F/U, Ref, Rx, O/E, H/O, C/O.
 - Gender / Sex Checkboxes: Look for Gender / Sex options ('Male', 'Female', 'Other'). A tick (✓), check, cross (✗), slash, dot, or circled word indicates selection. Return strictly "Male", "Female", or "Other".
@@ -81,6 +82,7 @@ Rules:
 - If you cannot read it, return [null, a number below 0.5].
 - Yes or No fields return exactly 'Yes', 'No' or null.
 - Normal or abnormal fields return exactly 'Normal', 'Abnormal' or null, with details in the _d field.
+- Abdomen and CNS Examination: Return strictly "Normal" or "NAD", not both combined (never "Normal (NAD)" or "Normal / NAD"). Do not extract or include "Existing" in abdomen.
 - Checkboxes, tick marks & options:
   * Any checkmark (✓), tick, diagonal slash (/), vertical stroke (|), dot, filled square, or circled option indicates selected (Yes or the chosen option).
   * Circled or underlined words (e.g. circled 'General Health', circled 'Male', circled 'Female', circled 'Normal', circled 'Unaided') indicate that option is selected.
@@ -859,14 +861,36 @@ def validate_and_sanitize_extraction(raw_payload: Any) -> Dict[str, Any]:
         "clubbing": _format_meta_field(health_raw.get("clubbing") or fields.get("clubbing"), 2),
     }
 
+    def _clean_sys_val(val: Any) -> Any:
+        def _sanitize_text(s: str) -> str:
+            # Remove occurrences of 'existing' and cleanup surrounding punctuation/conjunctions
+            t = re.sub(r'\bexisting\b', '', s, flags=re.IGNORECASE)
+            t = re.sub(r'\b(and|or)\s*$', '', t, flags=re.IGNORECASE).strip()
+            t = re.sub(r'[\(\[\{]\s*[\)\]\}]', '', t).strip()
+            t = re.sub(r'[,;\-\s]+$', '', t).strip()
+            # If both Normal and NAD are present, standardize to Normal
+            if re.search(r'\bnormal\b', t, re.IGNORECASE) and re.search(r'\bnad\b', t, re.IGNORECASE):
+                t = "Normal"
+            elif re.search(r'soft[,\s]+non-tender', t, re.IGNORECASE) and re.search(r'\bnad\b', t, re.IGNORECASE):
+                t = "Normal"
+            return t or "Normal"
+
+        if isinstance(val, (list, tuple)) and len(val) >= 1:
+            v0 = val[0]
+            if isinstance(v0, str):
+                return [_sanitize_text(v0)] + list(val[1:])
+        elif isinstance(val, str):
+            return _sanitize_text(val)
+        return val
+
     system_examination = {
         "ear": _format_meta_field(sys_raw.get("ear") or _fval("ear", "otoscope_right_ear", "otoscope_left_ear"), 2, details=_fdet("ear_d", "otoscope_right_ear", "otoscope_left_ear")),
         "nose": _format_meta_field(sys_raw.get("nose") or _fval("nose", "sys_nose"), 2, details=_fdet("nose_d", "sys_nose_d")),
         "throat": _format_meta_field(sys_raw.get("throat") or _fval("throat", "sys_throat"), 2, details=_fdet("throat_d", "sys_throat_d")),
         "respiratory_system": _format_meta_field(sys_raw.get("respiratory_system") or _fval("respiratory_system", "rs"), 2, details=_fdet("rs_d")),
         "cardiovascular_system": _format_meta_field(sys_raw.get("cardiovascular_system") or _fval("cardiovascular_system", "cvs"), 2, details=_fdet("cvs_d")),
-        "abdomen": _format_meta_field(sys_raw.get("abdomen") or _fval("abdomen"), 2, details=_fdet("abdomen_d")),
-        "central_nervous_system": _format_meta_field(sys_raw.get("central_nervous_system") or _fval("central_nervous_system", "cns"), 2, details=_fdet("cns_d")),
+        "abdomen": _format_meta_field(_clean_sys_val(sys_raw.get("abdomen") or _fval("abdomen")), 2, details=_fdet("abdomen_d")),
+        "central_nervous_system": _format_meta_field(_clean_sys_val(sys_raw.get("central_nervous_system") or _fval("central_nervous_system", "cns")), 2, details=_fdet("cns_d")),
         "skin": _format_meta_field(sys_raw.get("skin") or _fval("skin", "sys_skin"), 2, details=_fdet("skin_d", "sys_skin_d")),
         "hair": _format_meta_field(sys_raw.get("hair") or _fval("hair", "sys_hair"), 2, details=_fdet("hair_d", "sys_hair_d")),
         "musculoskeletal_system": _format_meta_field(sys_raw.get("musculoskeletal_system") or _fval("musculoskeletal_system", "msk"), 2, details=_fdet("msk_d")),

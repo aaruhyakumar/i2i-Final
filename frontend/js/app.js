@@ -3511,8 +3511,24 @@ function proceedToPairsScreen() {
     // Tab 5: Systemic
     if ($('rev-sys-rs')) $('rev-sys-rs').value = getVal(s_exam, 'respiratory_system', '');
     if ($('rev-sys-cvs')) $('rev-sys-cvs').value = getVal(s_exam, 'cardiovascular_system', '');
-    if ($('rev-sys-abdomen')) $('rev-sys-abdomen').value = getVal(s_exam, 'abdomen', '');
-    if ($('rev-sys-cns')) $('rev-sys-cns').value = getVal(s_exam, 'central_nervous_system', '');
+    
+    let rawAbd = getVal(s_exam, 'abdomen', '');
+    if (rawAbd) {
+      rawAbd = rawAbd.replace(/\bexisting\b/gi, '').replace(/\(\s*\)/g, '').trim();
+      if (/normal/i.test(rawAbd) && /nad/i.test(rawAbd)) {
+        rawAbd = 'Normal';
+      }
+    }
+    if ($('rev-sys-abdomen')) $('rev-sys-abdomen').value = rawAbd;
+
+    let rawCns = getVal(s_exam, 'central_nervous_system', '');
+    if (rawCns) {
+      rawCns = rawCns.replace(/\(\s*\)/g, '').trim();
+      if (/normal/i.test(rawCns) && /nad/i.test(rawCns)) {
+        rawCns = 'Normal';
+      }
+    }
+    if ($('rev-sys-cns')) $('rev-sys-cns').value = rawCns;
 
     // ENT 4 Independent Fields (Otoscopy RE/LE, Nose, Throat)
     const otoRear = getVal(s_exam, 'otoscope_right_ear', getVal(s_exam, 'otoscopy_right_ear', getVal(sr, 'otoscope_right_ear', record.otoscopy_right || record.otoscope_right_ear || '')));
@@ -4695,8 +4711,8 @@ function proceedToPairsScreen() {
 
     if ($('rev-sys-rs')) $('rev-sys-rs').value = 'Normal vesicular breath sounds, no added sounds (NAD)';
     if ($('rev-sys-cvs')) $('rev-sys-cvs').value = 'S1 S2 heard, normal rhythm, no murmurs (NAD)';
-    if ($('rev-sys-abdomen')) $('rev-sys-abdomen').value = 'Soft, non-tender, no organomegaly (NAD)';
-    if ($('rev-sys-cns')) $('rev-sys-cns').value = 'Conscious, oriented, normal reflexes (NAD)';
+    if ($('rev-sys-abdomen')) $('rev-sys-abdomen').value = 'Normal';
+    if ($('rev-sys-cns')) $('rev-sys-cns').value = 'Normal';
     if ($('rev-ent-rear')) $('rev-ent-rear').value = 'Normal (NAD)';
     if ($('rev-ent-lear')) $('rev-ent-lear').value = 'Normal (NAD)';
     if ($('rev-ent-nose')) $('rev-ent-nose').value = 'Normal (NAD)';
@@ -4949,6 +4965,9 @@ function proceedToPairsScreen() {
       const dynBP = $('dyn-field-blood_pressure_mmhg')?.value?.trim() || $('dyn-field-blood_pressure')?.value?.trim();
 
       const updates = {
+        id: state.activeRecord.id,
+        camp_id: state.activeRecord.camp_id || 'camp_default',
+        community_id: state.activeRecord.community_id || undefined,
         person_name: dynName || $('rev-name')?.value.trim() || state.activeRecord.person_name,
         age: dynAge || $('rev-age')?.value.trim() || state.activeRecord.age,
         gender: dynGender || $('rev-gender')?.value.trim() || state.activeRecord.gender,
@@ -5017,6 +5036,9 @@ function proceedToPairsScreen() {
       const dynBP = $('dyn-field-blood_pressure_mmhg')?.value?.trim() || $('dyn-field-blood_pressure')?.value?.trim();
 
       const updates = {
+        id: state.activeRecord.id,
+        camp_id: state.activeRecord.camp_id || 'camp_default',
+        community_id: state.activeRecord.community_id || undefined,
         person_name: dynName || $('rev-name')?.value.trim() || state.activeRecord.person_name,
         age: dynAge || $('rev-age')?.value.trim() || state.activeRecord.age,
         gender: dynGender || $('rev-gender')?.value.trim() || state.activeRecord.gender,

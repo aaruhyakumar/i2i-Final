@@ -203,6 +203,27 @@ class RecordService:
         """Explicitly approve/review a record with updated fields."""
         existing = database.get_record_by_id(record_id, self.db_path)
         if not existing:
+            try:
+                from backend.services.supabase_service import supabase_service
+                if supabase_service.is_available():
+                    sup_rec = supabase_service.get_record_by_id(record_id)
+                    if sup_rec:
+                        database.insert_record(sup_rec, self.db_path)
+                        existing = database.get_record_by_id(record_id, self.db_path)
+            except Exception:
+                pass
+
+        if not existing and updates.get("person_name"):
+            # Self-healing synthesis if record was in ephemeral state
+            synth_payload = dict(updates)
+            synth_payload["id"] = record_id
+            synth_payload["status"] = "needs_review"
+            if not synth_payload.get("camp_id"):
+                synth_payload["camp_id"] = "camp_default"
+            database.insert_record(synth_payload, self.db_path)
+            existing = database.get_record_by_id(record_id, self.db_path)
+
+        if not existing:
             raise ValueError(f"Record with ID '{record_id}' not found.")
 
         person_name = updates.get("person_name", existing["person_name"]).strip()

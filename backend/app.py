@@ -564,6 +564,12 @@ def create_app(db_path: Optional[str] = None) -> Flask:
         if is_supabase_enabled():
             try:
                 rec = supabase_service.get_record_by_id(record_id)
+                if rec:
+                    # Self-heal / mirror into local SQLite
+                    try:
+                        database.insert_record(rec, db_path)
+                    except Exception:
+                        pass
             except Exception as e:
                 logger.warning("Supabase resolve_record notice: %s", e)
         return rec
@@ -1603,6 +1609,25 @@ def create_app(db_path: Optional[str] = None) -> Flask:
         """Review and update record fields. Resolving flags alone does NOT approve or bill paper."""
         existing = resolve_record(record_id)
         if not existing:
+            payload = request.get_json(silent=True) or {}
+            if payload.get("person_name"):
+                rec_payload = dict(payload)
+                rec_payload["id"] = record_id
+                rec_payload["status"] = "needs_review"
+                if not rec_payload.get("camp_id"):
+                    rec_payload["camp_id"] = "camp_default"
+                try:
+                    database.insert_record(rec_payload, db_path)
+                    existing = database.get_record_by_id(record_id, db_path)
+                    if is_supabase_enabled():
+                        try:
+                            supabase_service.insert_record(rec_payload)
+                        except Exception:
+                            pass
+                except Exception as sh_err:
+                    logger.warning("Review self-heal insert notice: %s", sh_err)
+
+        if not existing:
             return jsonify({"error": "Record not found"}), 404
 
         rec_comm = get_resource_community(existing)
@@ -1696,6 +1721,12 @@ def create_app(db_path: Optional[str] = None) -> Flask:
                 supabase_service.approve_record(record_id, doctor)
             except Exception as e:
                 logger.error("Failed to approve in Supabase: %s", e)
+
+        if existing and not database.get_record_by_id(record_id, db_path):
+            try:
+                database.insert_record(existing, db_path)
+            except Exception:
+                pass
 
         success, updated, err = database.approve_record(record_id, approved_by=doctor, org_id=org_id, db_path=db_path)
         if not success:

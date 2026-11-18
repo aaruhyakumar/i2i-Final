@@ -1158,10 +1158,10 @@
 
         <!-- 8-Section Category Tabs -->
         <div class="review-tabs" id="static-review-tabs">
-          <button class="review-tab-btn active" id="rtab-personal" onclick="window.app.switchReviewTab('personal')">1. Personal & Vitals</button>
+          <button class="review-tab-btn active" id="rtab-personal" onclick="window.app.switchReviewTab('personal')">1. Personal Info</button>
           <button class="review-tab-btn" id="rtab-medical" onclick="window.app.switchReviewTab('medical')">2. Medical History</button>
           <button class="review-tab-btn" id="rtab-family" onclick="window.app.switchReviewTab('family')">3. Family History</button>
-          <button class="review-tab-btn" id="rtab-health" onclick="window.app.switchReviewTab('health')">4. Assessment</button>
+          <button class="review-tab-btn" id="rtab-health" onclick="window.app.switchReviewTab('health')">4. Vitals & Assessment</button>
           <button class="review-tab-btn" id="rtab-system" onclick="window.app.switchReviewTab('system')">5. Systemic Exam</button>
           <button class="review-tab-btn" id="rtab-vision" onclick="window.app.switchReviewTab('vision')">6. Vision & Dental</button>
           <button class="review-tab-btn" id="rtab-referral" onclick="window.app.switchReviewTab('referral')">7. Referral & Sign</button>
@@ -1269,25 +1269,109 @@
               <input id="rev-address" placeholder="Address">
             </div>
           </div>
+        </div>
 
-          <div class="form-grid">
-            <div>
-              <label for="rev-height">Height (cm)</label>
-              <input id="rev-height" placeholder="Height in cm" oninput="window.app.onVitalsChanged()">
-            </div>
-            <div>
-              <label for="rev-weight">Weight (kg)</label>
-              <input id="rev-weight" placeholder="Weight in kg" oninput="window.app.onVitalsChanged()">
-            </div>
+        <!-- Section 2: Medical History -->
+        <div class="review-section" id="rsec-medical">
+          <label for="rev-allergies">Known Allergies <span class="field-badge-warn" id="badge-allergies" style="display:none;">Check value</span></label>
+          <input id="rev-allergies" placeholder="No known allergies / details" oninput="window.app.onVitalsChanged()">
+          <div class="crop-snippet-preview" id="crop-preview-allergies" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
+            <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
+            <canvas id="crop-canvas-allergies" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
           </div>
 
-          <!-- Real-Time Interactive Live BMI Indicator -->
-          <div style="display:flex; align-items:center; justify-content:space-between; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:7px 14px; margin-bottom:12px;">
-            <div style="display:flex; align-items:center; gap:6px;">
-              <span style="font-size:14px;">⚖️</span>
-              <span style="font-size:12px; font-weight:700; color:#475569;">Live BMI Calculator:</span>
+          <label for="rev-surgery">Previous Surgery / Hospitalization</label>
+          <input id="rev-surgery" placeholder="Surgery / Hospitalization details">
+
+          <label for="rev-medications">Current / Previous Medications</label>
+          <input id="rev-medications" placeholder="Medications details">
+
+          <label for="rev-abdominal">Abdominal Pain / Constipation / Indigestion</label>
+          <input id="rev-abdominal" placeholder="None / details">
+
+          <label for="rev-ent">Skin / Hair / ENT Problems</label>
+          <input id="rev-ent" placeholder="None / details">
+
+          <label for="rev-activity">Physical Activity / Exercise</label>
+          <input id="rev-activity" placeholder="Daily walking, gym, etc.">
+
+          <label for="rev-social">Social History (Alcohol / Smoking)</label>
+          <input id="rev-social" placeholder="Non-smoker, occasional, etc.">
+        </div>
+
+        <!-- Section 3: Family History -->
+        <div class="review-section" id="rsec-family">
+          <label for="rev-fam-diabetes">Family: Diabetes</label>
+          <input id="rev-fam-diabetes" placeholder="Relationship / Details">
+
+          <label for="rev-fam-hypertension">Family: Hypertension</label>
+          <input id="rev-fam-hypertension" placeholder="Relationship / Details">
+
+          <label for="rev-fam-heart">Family: Heart Disease</label>
+          <input id="rev-fam-heart" placeholder="None / details">
+
+          <label for="rev-fam-thyroid">Family: Thyroid</label>
+          <input id="rev-fam-thyroid" placeholder="None / details">
+
+          <label for="rev-fam-asthma">Family: Asthma</label>
+          <input id="rev-fam-asthma" placeholder="None / details">
+
+          <label for="rev-fam-other">Family: Other Conditions</label>
+          <input id="rev-fam-other" placeholder="None">
+        </div>
+
+        <!-- Section 4: Health Assessment -->
+        <div class="review-section" id="rsec-health">
+          <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px; margin-bottom:14px;">
+            <div style="font-size:12px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">
+              📊 Patient Vitals & Anthropometrics
             </div>
-            <span id="rev-calculated-bmi" style="font-size:12px; font-weight:800; color:#0284C7; background:#E0F2FE; padding:3px 10px; border-radius:12px;">-- kg/m²</span>
+
+            <div class="form-grid">
+              <div>
+                <label for="rev-height">Height (cm)</label>
+                <input id="rev-height" placeholder="Height in cm" oninput="window.app.onVitalsChanged()">
+              </div>
+              <div>
+                <label for="rev-weight">Weight (kg)</label>
+                <input id="rev-weight" placeholder="Weight in kg" oninput="window.app.onVitalsChanged()">
+              </div>
+            </div>
+
+            <!-- Real-Time Interactive Live BMI Indicator -->
+            <div style="display:flex; align-items:center; justify-content:space-between; background:#FFFFFF; border:1px solid #E2E8F0; border-radius:10px; padding:7px 14px; margin-bottom:12px;">
+              <div style="display:flex; align-items:center; gap:6px;">
+                <span style="font-size:14px;">⚖️</span>
+                <span style="font-size:12px; font-weight:700; color:#475569;">Live BMI Calculator:</span>
+              </div>
+              <span id="rev-calculated-bmi" style="font-size:12px; font-weight:800; color:#0284C7; background:#E0F2FE; padding:3px 10px; border-radius:12px;">-- kg/m²</span>
+            </div>
+
+            <div class="form-grid">
+              <div>
+                <label for="rev-bp">Blood Pressure <span class="field-badge-warn" id="badge-bp" style="display:none;">Check value</span></label>
+                <input id="rev-bp" placeholder="120/80" oninput="window.app.onVitalsChanged()">
+                <div class="crop-snippet-preview" id="crop-preview-bp" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
+                  <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
+                  <canvas id="crop-canvas-bp" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
+                </div>
+              </div>
+              <div>
+                <label for="rev-pulse">Pulse (bpm)</label>
+                <input id="rev-pulse" placeholder="Pulse bpm" oninput="window.app.onVitalsChanged()">
+              </div>
+            </div>
+
+            <div class="form-grid">
+              <div>
+                <label for="rev-rbs">RBS (mg/dL)</label>
+                <input id="rev-rbs" placeholder="RBS mg/dL">
+              </div>
+              <div>
+                <label for="rev-waist">Waist (cm)</label>
+                <input id="rev-waist" placeholder="Waist cm">
+              </div>
+            </div>
           </div>
 
           <!-- PAEDIATRIC GROWTH & IAP PERCENTILE PANEL (Active for Age < 18 or School Health) -->
@@ -1357,118 +1441,6 @@
               <div style="display:flex; align-items:center; gap:6px;">
                 <input id="rev-atr" type="number" step="0.5" placeholder="0" oninput="window.app.onVitalsChanged()" style="width:65px; height:30px; font-size:12px; text-align:center; padding:0 4px; border:1px solid #CBD5E1; border-radius:6px; background:#fff;">
                 <span style="font-size:12px; font-weight:700; color:#64748B;">&deg;</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="form-grid">
-            <div>
-              <label for="rev-bp">Blood Pressure <span class="field-badge-warn" id="badge-bp" style="display:none;">Check value</span></label>
-              <input id="rev-bp" placeholder="120/80" oninput="window.app.onVitalsChanged()">
-              <div class="crop-snippet-preview" id="crop-preview-bp" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
-                <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
-                <canvas id="crop-canvas-bp" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
-              </div>
-            </div>
-            <div>
-              <label for="rev-pulse">Pulse (bpm)</label>
-              <input id="rev-pulse" placeholder="Pulse bpm" oninput="window.app.onVitalsChanged()">
-            </div>
-          </div>
-
-          <div class="form-grid">
-            <div>
-              <label for="rev-rbs">RBS (mg/dL)</label>
-              <input id="rev-rbs" placeholder="RBS mg/dL">
-            </div>
-            <div>
-              <label for="rev-waist">Waist (cm)</label>
-              <input id="rev-waist" placeholder="Waist cm">
-            </div>
-          </div>
-        </div>
-
-        <!-- Section 2: Medical History -->
-        <div class="review-section" id="rsec-medical">
-          <label for="rev-allergies">Known Allergies <span class="field-badge-warn" id="badge-allergies" style="display:none;">Check value</span></label>
-          <input id="rev-allergies" placeholder="No known allergies / details" oninput="window.app.onVitalsChanged()">
-          <div class="crop-snippet-preview" id="crop-preview-allergies" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
-            <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
-            <canvas id="crop-canvas-allergies" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
-          </div>
-
-          <label for="rev-surgery">Previous Surgery / Hospitalization</label>
-          <input id="rev-surgery" placeholder="Surgery / Hospitalization details">
-
-          <label for="rev-medications">Current / Previous Medications</label>
-          <input id="rev-medications" placeholder="Medications details">
-
-          <label for="rev-abdominal">Abdominal Pain / Constipation / Indigestion</label>
-          <input id="rev-abdominal" placeholder="None / details">
-
-          <label for="rev-ent">Skin / Hair / ENT Problems</label>
-          <input id="rev-ent" placeholder="None / details">
-
-          <label for="rev-activity">Physical Activity / Exercise</label>
-          <input id="rev-activity" placeholder="Daily walking, gym, etc.">
-
-          <label for="rev-social">Social History (Alcohol / Smoking)</label>
-          <input id="rev-social" placeholder="Non-smoker, occasional, etc.">
-        </div>
-
-        <!-- Section 3: Family History -->
-        <div class="review-section" id="rsec-family">
-          <label for="rev-fam-diabetes">Family: Diabetes</label>
-          <input id="rev-fam-diabetes" placeholder="Relationship / Details">
-
-          <label for="rev-fam-hypertension">Family: Hypertension</label>
-          <input id="rev-fam-hypertension" placeholder="Relationship / Details">
-
-          <label for="rev-fam-heart">Family: Heart Disease</label>
-          <input id="rev-fam-heart" placeholder="None / details">
-
-          <label for="rev-fam-thyroid">Family: Thyroid</label>
-          <input id="rev-fam-thyroid" placeholder="None / details">
-
-          <label for="rev-fam-asthma">Family: Asthma</label>
-          <input id="rev-fam-asthma" placeholder="None / details">
-
-          <label for="rev-fam-other">Family: Other Conditions</label>
-          <input id="rev-fam-other" placeholder="None">
-        </div>
-
-        <!-- Section 4: Health Assessment -->
-        <div class="review-section" id="rsec-health">
-          <!-- Vitals & Anthropometrics Summary in Assessment -->
-          <div id="assessment-vitals-summary-card" style="background:#F8FAFC; border:1.5px solid #CBD5E1; border-radius:10px; padding:10px 12px; margin-bottom:14px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-              <span style="font-size:11.5px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.5px;">📊 Key Vitals & Anthropometrics</span>
-              <span id="assessment-vitals-status-pill" class="tag" style="font-size:10.5px; background:#E2E8F0; color:#475569;">Live Assessment</span>
-            </div>
-            <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:6px;">
-              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
-                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">HEIGHT</small>
-                <b id="summary-vital-height" style="font-size:12.5px; color:#0F172A;">-- cm</b>
-              </div>
-              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
-                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">WEIGHT</small>
-                <b id="summary-vital-weight" style="font-size:12.5px; color:#0F172A;">-- kg</b>
-              </div>
-              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
-                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">BMI</small>
-                <b id="summary-vital-bmi" style="font-size:12.5px; color:#0F172A;">-- kg/m²</b>
-              </div>
-              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
-                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">BP</small>
-                <b id="summary-vital-bp" style="font-size:12.5px; color:#0F172A;">--/-- mmHg</b>
-              </div>
-              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
-                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">PULSE</small>
-                <b id="summary-vital-pulse" style="font-size:12.5px; color:#0F172A;">-- bpm</b>
-              </div>
-              <div style="background:#fff; border:1px solid #E2E8F0; border-radius:6px; padding:6px; text-align:center;">
-                <small style="display:block; font-size:9.5px; font-weight:700; color:#64748B;">ATR</small>
-                <b id="summary-vital-atr" style="font-size:12.5px; color:#0F172A;">--°</b>
               </div>
             </div>
           </div>

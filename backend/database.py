@@ -3037,6 +3037,16 @@ def approve_record(
     init_db(db_path)
     rec = get_record_by_id(record_id, db_path)
     if not rec:
+        try:
+            from backend.services.supabase_service import supabase_service
+            if supabase_service.is_available():
+                sup_rec = supabase_service.get_record_by_id(record_id)
+                if sup_rec:
+                    insert_record(sup_rec, db_path)
+                    rec = get_record_by_id(record_id, db_path)
+        except Exception:
+            pass
+    if not rec:
         return False, None, "Record not found"
 
     # Consent Gating Lock: Enforce hard block preventing doctor approval if consent is withheld or marked 'No'
