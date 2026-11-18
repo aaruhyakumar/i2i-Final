@@ -334,7 +334,7 @@ export const api = {
     return request(`/api/records/${encodeURIComponent(recordId)}`);
   },
 
-  async extractPages(page1Blob, page2Blob, campId = null, qualityBypassed = false, templateIds = null) {
+  async extractPages(page1Blob, page2Blob, campId = null, qualityBypassed = false, templateIds = null, requestId = null) {
     // ── Offline path: encrypt + enqueue ────────────────────────────────────
     if (!navigator.onLine) {
       const apiHeaders = {};
@@ -345,6 +345,7 @@ export const api = {
       const customModel = localStorage.getItem('i2i_ai_model');
       if (customModel) apiHeaders['X-AI-Model'] = customModel.trim();
       if (qualityBypassed) apiHeaders['X-Quality-Bypassed'] = '1';
+      if (requestId) apiHeaders['X-Request-ID'] = requestId;
 
       const id = await offlineQueue.enqueue(page1Blob, page2Blob, { campId, apiHeaders, templateIds });
       const queueLength = await offlineQueue.length();
@@ -368,10 +369,13 @@ export const api = {
       formData.append('template_ids', tIds);
     }
 
+    const extractHeaders = qualityBypassed ? { 'X-Quality-Bypassed': '1' } : {};
+    if (requestId) extractHeaders['X-Request-ID'] = requestId;
+
     return request('/api/extract', {
       method: 'POST',
       body: formData,
-      headers: qualityBypassed ? { 'X-Quality-Bypassed': '1' } : {}
+      headers: extractHeaders
     });
   },
 
@@ -390,10 +394,12 @@ export const api = {
     });
   },
 
-  async saveRecord(recordData) {
+  async saveRecord(recordData, requestId = null) {
+    const headers = { 'Content-Type': 'application/json' };
+    if (requestId) headers['X-Request-ID'] = requestId;
     return request('/api/records', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(recordData)
     });
   },

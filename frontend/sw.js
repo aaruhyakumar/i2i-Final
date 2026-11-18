@@ -14,7 +14,7 @@
  *       triggers the sync event so queue-draining can run.
  */
 
-const CACHE_VERSION = 'ink2i-v20261118_v9_clinical';
+const CACHE_VERSION = 'ink2i-v20261119_v10_latency';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

@@ -3024,12 +3024,18 @@ function proceedToPairsScreen() {
       state.formFamily = 'paediatric';
     }
 
+    const tUserClick = performance.now();
+    const requestId = 'req_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+
     try {
       toast('Transcribing document pages with Vision AI…');
       const templateIds = state.detectedTemplateIds;
       // Pass quality bypass flag to prevent redundant 422 round-trip re-uploads
       state.qualityBypassed = true;
-      const extractRes = await api.extractPages(p1, p2, campId, true, templateIds);
+      const tUploadStart = performance.now();
+      const extractRes = await api.extractPages(p1, p2, campId, true, templateIds, requestId);
+      const tUploadEnd = performance.now();
+      const clientUploadDurationMs = roundNum(tUploadEnd - tUploadStart, 1);
 
       // Debug line comparing client and server blur scores for the same photo
       const clientBlurP1 = (state.clientPageQualities && state.clientPageQualities[0]) ? state.clientPageQualities[0].blur_score : 'N/A';
@@ -3093,11 +3099,31 @@ function proceedToPairsScreen() {
         quality_warning_bypassed: (state.qualityWarningsBypassed && state.qualityWarningsBypassed.length > 0) ? state.qualityWarningsBypassed : []
       };
 
-      const saved = await api.saveRecord(recordPayload);
+      const tSaveStart = performance.now();
+      const saved = await api.saveRecord(recordPayload, requestId);
+      const tSaveEnd = performance.now();
+      const clientSaveDurationMs = Math.round((tSaveEnd - tSaveStart) * 10) / 10;
       toast('Transcribed! Opening physician review…');
 
       // Automatically load into Review Screen
+      const tRenderStart = performance.now();
       openReview(saved.id);
+      const tRenderEnd = performance.now();
+      const clientRenderDurationMs = Math.round((tRenderEnd - tRenderStart) * 10) / 10;
+      const totalUserPerceivedMs = Math.round((tRenderEnd - tUserClick) * 10) / 10;
+
+      const st = (extractRes && extractRes.stage_timings) || {};
+      console.info(
+        `[LATENCY_REPORT] req_id=${requestId} total_user_perceived=${totalUserPerceivedMs}ms ` +
+        `stage_1_client_upload=${clientUploadDurationMs}ms ` +
+        `stage_2_backend_reception=${st.stage_2_backend_reception_ms || 0}ms ` +
+        `stage_3_preprocessing=${st.stage_3_image_preprocessing_ms || 0}ms ` +
+        `stage_4_claude_api=${st.stage_4_claude_api_ms || 0}ms ` +
+        `stage_5_normalization=${st.stage_5_normalization_ms || 0}ms ` +
+        `stage_6_sqlite_save=${saved.sqlite_persistence_ms || clientSaveDurationMs}ms ` +
+        `stage_9_client_render=${clientRenderDurationMs}ms ` +
+        `tokens_in=${st.tokens_in || 0} tokens_out=${st.tokens_out || 0}`
+      );
 
     } catch (ex) {
       console.error('Extraction error:', ex);

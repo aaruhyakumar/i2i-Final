@@ -12,6 +12,7 @@ Conforms to Appendix C of the implementation instructions:
 import os
 import re
 import json
+import time
 import logging
 from datetime import datetime, timezone
 from abc import ABC, abstractmethod
@@ -1208,7 +1209,8 @@ def extract(
     api_key: Optional[str] = None,
     provider: Optional[str] = None,
     model: Optional[str] = None,
-    template_ids: Optional[List[str]] = None
+    template_ids: Optional[List[str]] = None,
+    request_id: Optional[str] = None
 ) -> Dict[str, Any]:
     """Phase 1 Single AI Function with Phase 3 Quota Reservation & Deduplication.
     
@@ -1404,6 +1406,7 @@ def extract(
 
     # Normalization via default_extraction_pipeline (glossary + invariants)
     # Normalizes BOTH Page 1 (History) and Page 2 (Examination) templates with safe cross-page coalescence
+    t_post_norm_start = time.monotonic()
     try:
         from .extraction_v2 import default_extraction_pipeline
         raw_extracted = extraction_res.get("data") or {}
@@ -1458,6 +1461,12 @@ def extract(
                 }
         except Exception as p_err:
             logger.warning("Automated paediatric screening evaluation warning: %s", p_err)
+
+    post_norm_duration_ms = round((time.monotonic() - t_post_norm_start) * 1000, 2)
+    if "timings" not in extraction_res:
+        extraction_res["timings"] = {}
+    prev_schema_norm = extraction_res["timings"].get("schema_normalization_ms", 0.0)
+    extraction_res["timings"]["normalization_ms"] = round(prev_schema_norm + post_norm_duration_ms, 2)
 
     extraction_res["classification"] = resolution
     extraction_res["form_family"] = resolved_family

@@ -461,6 +461,8 @@ class UnifiedAIPipeline(AIService):
         """
         cfg = PROVIDER_DEFAULTS.get(self.provider, PROVIDER_DEFAULTS["claude"])
         t0 = time.time()
+        t0_mono = time.monotonic()
+        timeout_count = 0
 
         # Prepare request for Anthropic Claude Messages API
         b64_1 = base64.b64encode(p1_bytes).decode("utf-8")
@@ -503,6 +505,7 @@ class UnifiedAIPipeline(AIService):
                     res_json = resp.json()
                     raw_text, tokens_in, tokens_out, tokens_think = self._parse_provider_response(res_json)
                     cost_rs = self.calculate_cost_rs(tokens_in, tokens_out, tokens_think, is_fallback=is_fallback)
+                    elapsed_mono_ms = round((time.monotonic() - t0_mono) * 1000, 2)
 
                     return {
                         "success": True,
@@ -512,6 +515,9 @@ class UnifiedAIPipeline(AIService):
                         "tokens_out": tokens_out,
                         "tokens_think": tokens_think,
                         "seconds": round(elapsed, 2),
+                        "claude_api_ms": elapsed_mono_ms,
+                        "retries": attempt,
+                        "timeouts": timeout_count,
                         "cost_rs": cost_rs,
                         "provider": self.provider
                     }
@@ -539,6 +545,7 @@ class UnifiedAIPipeline(AIService):
 
             except requests.exceptions.Timeout:
                 last_err = "Request timed out"
+                timeout_count += 1
                 logger.warning("Attempt %d: Request timed out after %ds", attempt + 1, self.timeout_seconds)
                 time.sleep(1.0)
             except Exception as e:
@@ -663,9 +670,11 @@ class UnifiedAIPipeline(AIService):
         # 1. Preprocess both pages
         # preprocess_clinical_image() returns (bytes, mime_type) so that the
         # Claude content-block declaration always matches the encoded format.
+        t_prep_start = time.monotonic()
         try:
             p1_opt, p1_mime = preprocess_clinical_image(sf_bytes)
             p2_opt, p2_mime = preprocess_clinical_image(ha_bytes)
+            prep_duration_ms = round((time.monotonic() - t_prep_start) * 1000, 2)
         except Exception as prep_err:
             logger.error("Clinical image preprocessing failed: %s", prep_err)
             return {
@@ -700,6 +709,7 @@ class UnifiedAIPipeline(AIService):
             }
 
         # 3. Parse JSON & Validate Schema
+        t_norm_start = time.monotonic()
         raw_text = primary_res.get("raw_text", "")
         clean_text = re.sub(r"^```(?:json)?\s*|\s*```$", "", raw_text.strip(), flags=re.MULTILINE)
 
@@ -713,6 +723,7 @@ class UnifiedAIPipeline(AIService):
             parsed_data = {}
 
         sanitized = validate_and_sanitize_extraction(parsed_data)
+        schema_norm_duration_ms = round((time.monotonic() - t_norm_start) * 1000, 2)
 
         # 4. Evaluate Server-side Escalation Rules
         should_escalate, esc_reason = self._should_escalate(sanitized)
@@ -748,6 +759,9 @@ class UnifiedAIPipeline(AIService):
         total_tokens_out = sum(c.get("tokens_out", 0) for c in calls if c.get("success"))
         total_tokens_think = sum(c.get("tokens_think", 0) for c in calls if c.get("success"))
         total_seconds = round(sum(c.get("seconds", 0.0) for c in calls if c.get("success")), 2)
+        total_api_ms = round(sum(c.get("claude_api_ms", c.get("seconds", 0.0) * 1000.0) for c in calls if c.get("success")), 2)
+        total_retries = sum(c.get("retries", 0) for c in calls)
+        total_timeouts = sum(c.get("timeouts", 0) for c in calls)
         total_cost_rs = round(sum(c.get("cost_rs", 0.0) for c in calls if c.get("success")), 4)
 
         return {
@@ -756,6 +770,13 @@ class UnifiedAIPipeline(AIService):
             **sanitized,
             "calls": calls,
             "provider": self.provider_name(),
+            "timings": {
+                "image_preprocessing_ms": prep_duration_ms,
+                "claude_api_ms": total_api_ms,
+                "schema_normalization_ms": schema_norm_duration_ms,
+                "retries": total_retries,
+                "timeouts": total_timeouts,
+            },
             "usage": {
                 "tokens_in": total_tokens_in,
                 "tokens_out": total_tokens_out,

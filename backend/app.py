@@ -12,6 +12,7 @@ import os
 import sys
 import io
 import re
+import time
 import logging
 import threading
 from datetime import datetime, timezone
@@ -201,6 +202,8 @@ def create_app(db_path: Optional[str] = None) -> Flask:
     @app.before_request
     def enforce_auth_guard():
         from flask import g
+        g.request_id = request.headers.get("X-Request-ID") or f"req_{int(time.time()*1000)}_{os.urandom(3).hex()}"
+        g.t_request_start = time.monotonic()
         path = request.path
         if not path.startswith("/api/"):
             return None
@@ -618,6 +621,13 @@ def create_app(db_path: Optional[str] = None) -> Flask:
 
     @app.after_request
     def add_no_cache_headers(response):
+        from flask import g
+        req_id = getattr(g, "request_id", None)
+        if req_id:
+            response.headers["X-Request-ID"] = req_id
+        t_start = getattr(g, "t_request_start", None)
+        if t_start:
+            response.headers["X-Response-Time"] = f"{((time.monotonic() - t_start) * 1000):.2f}ms"
         if request.path.startswith("/api/files/"):
             response.headers["Cache-Control"] = "private, no-store"
             response.headers["X-Content-Type-Options"] = "nosniff"
@@ -1464,17 +1474,35 @@ def create_app(db_path: Optional[str] = None) -> Flask:
 
         if not payload.get("scanned_by"):
             payload["scanned_by"] = getattr(g, 'user_id', 'demo_user')
+        req_id = getattr(g, 'request_id', None) or request.headers.get("X-Request-ID") or f"req_{int(time.time()*1000)}_{os.urandom(3).hex()}"
         try:
             # 1. Local-First: Persist to SQLite immediately (< 2 ms)
+            t_sqlite_start = time.monotonic()
             created = record_service.create_record(payload)
+            sqlite_persistence_ms = round((time.monotonic() - t_sqlite_start) * 1000, 2)
+            created["sqlite_persistence_ms"] = sqlite_persistence_ms
+            logger.info(
+                "[LATENCY_STAGE] request_id=%s stage=sqlite_persistence duration_ms=%.2f mode=sync",
+                req_id, sqlite_persistence_ms
+            )
 
             # 2. Asynchronous Sync: Sync to Supabase in background thread without blocking the user
             if is_supabase_enabled():
                 def _bg_sync_create(rec_data):
+                    t_sync_start = time.monotonic()
                     try:
                         supabase_service.insert_record(rec_data)
+                        supabase_sync_ms = round((time.monotonic() - t_sync_start) * 1000, 2)
+                        logger.info(
+                            "[LATENCY_STAGE] request_id=%s stage=supabase_sync duration_ms=%.2f mode=async_background status=success",
+                            req_id, supabase_sync_ms
+                        )
                     except Exception as s_err:
-                        logger.warning("Background Supabase record insert notice: %s", s_err)
+                        supabase_sync_ms = round((time.monotonic() - t_sync_start) * 1000, 2)
+                        logger.warning(
+                            "[LATENCY_STAGE] request_id=%s stage=supabase_sync duration_ms=%.2f mode=async_background status=warning error=%s",
+                            req_id, supabase_sync_ms, s_err
+                        )
 
                 threading.Thread(target=_bg_sync_create, args=(dict(payload),), daemon=True).start()
 
@@ -3813,6 +3841,8 @@ def create_app(db_path: Optional[str] = None) -> Flask:
     @limiter.limit("10/minute")
     def extract_document():
         """Accepts student_form and health_assessment sheets, checks quota/dedup, and calls AI extractor."""
+        t_recv = getattr(g, "t_request_start", time.monotonic())
+        req_id = getattr(g, "request_id", None) or request.headers.get("X-Request-ID") or f"req_{int(time.time()*1000)}_{os.urandom(3).hex()}"
         # Support both new standard names and backward-compatible page1/page2
         sf_file = request.files.get("student_form") or request.files.get("page1")
         ha_file = request.files.get("health_assessment") or request.files.get("page2")
@@ -3971,6 +4001,12 @@ def create_app(db_path: Optional[str] = None) -> Flask:
         template_ids_raw = request.form.get("template_ids") or request.args.get("template_ids")
         template_ids_list = [t.strip() for t in template_ids_raw.split(",") if t.strip()] if template_ids_raw else None
 
+        reception_duration_ms = round((time.monotonic() - t_recv) * 1000, 2)
+        logger.info(
+            "[LATENCY_STAGE] request_id=%s stage=backend_reception duration_ms=%.2f mode=sync",
+            req_id, reception_duration_ms
+        )
+
         result = ai_extract(
             student_form_bytes=sf_bytes,
             health_assessment_bytes=ha_bytes,
@@ -3981,8 +4017,24 @@ def create_app(db_path: Optional[str] = None) -> Flask:
             api_key=dynamic_key,
             provider=dynamic_provider,
             model=dynamic_model,
-            template_ids=template_ids_list
+            template_ids=template_ids_list,
+            request_id=req_id
         )
+
+        timings = result.get("timings") or {}
+        stage_timings = {
+            "request_id": req_id,
+            "stage_2_backend_reception_ms": reception_duration_ms,
+            "stage_3_image_preprocessing_ms": timings.get("image_preprocessing_ms", 0.0),
+            "stage_4_claude_api_ms": timings.get("claude_api_ms", 0.0),
+            "stage_5_normalization_ms": timings.get("normalization_ms", 0.0),
+            "tokens_in": result.get("usage", {}).get("tokens_in", 0),
+            "tokens_out": result.get("usage", {}).get("tokens_out", 0),
+            "tokens_think": result.get("usage", {}).get("tokens_think", 0),
+            "retries": timings.get("retries", 0),
+            "timeouts": timings.get("timeouts", 0),
+        }
+        result["stage_timings"] = stage_timings
 
         # Inject quality metrics and bypass flag
         result["quality"] = quality_summary
