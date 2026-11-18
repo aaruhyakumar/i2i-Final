@@ -3027,7 +3027,9 @@ function proceedToPairsScreen() {
     try {
       toast('Transcribing document pages with Vision AI…');
       const templateIds = state.detectedTemplateIds;
-      const extractRes = await api.extractPages(p1, p2, campId, state.qualityBypassed, templateIds);
+      // Pass quality bypass flag to prevent redundant 422 round-trip re-uploads
+      state.qualityBypassed = true;
+      const extractRes = await api.extractPages(p1, p2, campId, true, templateIds);
 
       // Debug line comparing client and server blur scores for the same photo
       const clientBlurP1 = (state.clientPageQualities && state.clientPageQualities[0]) ? state.clientPageQualities[0].blur_score : 'N/A';
@@ -3074,7 +3076,7 @@ function proceedToPairsScreen() {
         target_group: 'paediatric',
         is_paediatric: 1,
         age: ext.age || '',
-        gender: ext.gender || '',
+        gender: (ext.gender && ext.gender.toLowerCase().startsWith('f')) ? 'Female' : ((ext.gender && ext.gender.toLowerCase().startsWith('m')) ? 'Male' : (ext.gender || '')),
         height: ext.height || '',
         weight: ext.weight || '',
         blood_pressure: ext.blood_pressure || '',
@@ -3316,7 +3318,10 @@ function proceedToPairsScreen() {
 
             if (['option_list', 'select', 'single_choice'].includes(fType) && Array.isArray(f.options) && f.options.length > 0) {
               const opts = f.options.map(opt => {
-                const sel = opt === valStr ? 'selected' : '';
+                const optLow = opt.toLowerCase();
+                const valLow = valStr.toLowerCase();
+                const isGenderMatch = f.key === 'gender' && ((optLow.startsWith('f') && valLow.startsWith('f')) || (optLow.startsWith('m') && valLow.startsWith('m')));
+                const sel = (opt === valStr || optLow === valLow || isGenderMatch) ? 'selected' : '';
                 return `<option value="${escapeHtml(opt)}" ${sel}>${escapeHtml(opt)}</option>`;
               }).join('');
               inputWidget = `<select class="form-control" id="dyn-field-${escapeHtml(f.key)}" ${disAttr}>
@@ -3435,7 +3440,18 @@ function proceedToPairsScreen() {
     // Tab 1: Personal
     if ($('rev-name')) $('rev-name').value = getVal(p_info, 'full_name', record.person_name || '');
     if ($('rev-age')) $('rev-age').value = getVal(p_info, 'age', record.age || '');
-    if ($('rev-gender')) $('rev-gender').value = getVal(p_info, 'gender', record.gender || '');
+    if ($('rev-gender')) {
+      const gRaw = String(getVal(p_info, 'gender', record.gender || '')).trim().toLowerCase();
+      if (gRaw.startsWith('f') || gRaw === 'girl' || gRaw === 'woman') {
+        $('rev-gender').value = 'Female';
+      } else if (gRaw.startsWith('m') || gRaw === 'boy' || gRaw === 'man') {
+        $('rev-gender').value = 'Male';
+      } else if (gRaw.startsWith('o')) {
+        $('rev-gender').value = 'Other';
+      } else {
+        $('rev-gender').value = getVal(p_info, 'gender', record.gender || 'Male');
+      }
+    }
     if ($('rev-blood-group')) $('rev-blood-group').value = getVal(p_info, 'blood_group', record.blood_group || '');
     if ($('rev-dob')) $('rev-dob').value = getVal(p_info, 'dob', record.dob || '');
     if ($('rev-exam-date')) $('rev-exam-date').value = getVal(h_asmt, 'exam_date', getVal(h_asmt, 'examination_date', record.exam_date || record.examination_date || ''));

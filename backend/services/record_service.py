@@ -227,26 +227,31 @@ class RecordService:
         """Generate RFC 4180 compliant CSV of records with formula injection protection."""
         status_filter = "reviewed" if only_reviewed else None
         target_org = org_id or community_id
-        records = None
+        local_records = database.list_records(
+            camp_id=camp_id,
+            status=status_filter,
+            community_id=target_org,
+            limit=10000,
+            db_path=self.db_path
+        ) or []
+        remote_records = []
         try:
             from backend.services.supabase_service import supabase_service
             if supabase_service.is_available():
-                records = supabase_service.list_records(
+                sup_recs = supabase_service.list_records(
                     camp_id=camp_id,
                     status=status_filter,
                     community_id=target_org,
                     limit=10000
                 )
+                if sup_recs:
+                    remote_records = sup_recs
         except Exception:
             pass
-        if records is None:
-            records = database.list_records(
-                camp_id=camp_id,
-                status=status_filter,
-                community_id=target_org,
-                limit=10000,
-                db_path=self.db_path
-            )
+        merged_map = {r["id"]: r for r in remote_records}
+        for r in local_records:
+            merged_map[r["id"]] = r
+        records = list(merged_map.values())
 
         output = io.StringIO()
         writer = csv.writer(output, quoting=csv.QUOTE_MINIMAL, lineterminator="\r\n")
@@ -296,31 +301,43 @@ class RecordService:
                     sr = json.loads(sr)
                 except Exception:
                     sr = {}
-            p_info = sr.get("personal_information") or {}
-            m_hist = sr.get("medical_history") or {}
-            h_asmt = sr.get("health_assessment") or {}
-            vis = sr.get("vision") or {}
+            p_info = sr.get("personal_information") if isinstance(sr.get("personal_information"), dict) else {}
+            m_hist = sr.get("medical_history") if isinstance(sr.get("medical_history"), dict) else {}
+            h_asmt = sr.get("health_assessment") if isinstance(sr.get("health_assessment"), dict) else {}
+            vis = sr.get("vision") if isinstance(sr.get("vision"), dict) else {}
 
-            doc_id = p_info.get("doc_id", {}).get("value")
-            adm_id = p_info.get("admission_id", {}).get("value")
-            school = p_info.get("school_college_name", {}).get("value")
-            staff_student = p_info.get("staff_student_type", {}).get("value")
-            dob = p_info.get("dob", {}).get("value")
-            b_group = p_info.get("blood_group", {}).get("value")
-            mobile = p_info.get("mobile_number", {}).get("value")
-            address = p_info.get("address", {}).get("value")
+            def _get_f(obj, k):
+                val = obj.get(k)
+                if isinstance(val, dict):
+                    return val.get("value")
+                return val
 
-            pulse = h_asmt.get("pulse_bpm", {}).get("value")
-            rbs = h_asmt.get("random_blood_sugar_mgdl", {}).get("value")
-            waist = h_asmt.get("waist_circumference_cm", {}).get("value")
+            def _get_d(obj, k):
+                val = obj.get(k)
+                if isinstance(val, dict):
+                    return val.get("details") or val.get("value")
+                return val
 
-            allergies = m_hist.get("known_allergies", {}).get("details") or m_hist.get("known_allergies", {}).get("value")
-            surgery = m_hist.get("previous_surgery_hospitalization", {}).get("details") or m_hist.get("previous_surgery_hospitalization", {}).get("value")
-            activity = m_hist.get("physical_activity", {}).get("details") or m_hist.get("physical_activity", {}).get("value")
-            social = m_hist.get("social_history", {}).get("details") or m_hist.get("social_history", {}).get("value")
+            doc_id = _get_f(p_info, "doc_id")
+            adm_id = _get_f(p_info, "admission_id")
+            school = _get_f(p_info, "school_college_name")
+            staff_student = _get_f(p_info, "staff_student_type")
+            dob = _get_f(p_info, "dob")
+            b_group = _get_f(p_info, "blood_group")
+            mobile = _get_f(p_info, "mobile_number")
+            address = _get_f(p_info, "address")
 
-            va_right = vis.get("distant_vision_right", {}).get("value")
-            va_left = vis.get("distant_vision_left", {}).get("value")
+            pulse = _get_f(h_asmt, "pulse_bpm")
+            rbs = _get_f(h_asmt, "random_blood_sugar_mgdl")
+            waist = _get_f(h_asmt, "waist_circumference_cm")
+
+            allergies = _get_d(m_hist, "known_allergies")
+            surgery = _get_d(m_hist, "previous_surgery_hospitalization")
+            activity = _get_d(m_hist, "physical_activity")
+            social = _get_d(m_hist, "social_history")
+
+            va_right = _get_f(vis, "distant_vision_right")
+            va_left = _get_f(vis, "distant_vision_left")
 
             row = [
                 sanitize_csv_cell(r.get("id")),
@@ -444,33 +461,39 @@ class RecordService:
         """Generate formatted Excel (.xlsx) workbook with columns in exact form field order (Page 1 → Page 2)."""
         status_filter = "reviewed" if only_reviewed else None
         target_org = org_id or community_id
-        records = None
+        local_records = database.list_records(
+            camp_id=camp_id,
+            status=status_filter,
+            community_id=target_org,
+            limit=10000,
+            db_path=self.db_path
+        ) or []
+        local_camps = database.list_camps_with_stats(self.db_path, community_id=target_org) or []
+        remote_records = []
         camps = None
         try:
             from backend.services.supabase_service import supabase_service
             if supabase_service.is_available():
-                records = supabase_service.list_records(
+                sup_recs = supabase_service.list_records(
                     camp_id=camp_id,
                     status=status_filter,
                     community_id=target_org,
                     limit=10000
                 )
+                if sup_recs:
+                    remote_records = sup_recs
                 c_list = supabase_service.list_camps_with_stats(community_id=target_org)
                 if c_list is not None:
                     camps = c_list
         except Exception as sup_exp_err:
             logger.warning("Supabase export record retrieval notice: %s", sup_exp_err)
 
-        if records is None:
-            records = database.list_records(
-                camp_id=camp_id,
-                status=status_filter,
-                community_id=target_org,
-                limit=10000,
-                db_path=self.db_path
-            )
+        merged_map = {r["id"]: r for r in remote_records}
+        for r in local_records:
+            merged_map[r["id"]] = r
+        records = list(merged_map.values())
         if camps is None:
-            camps = database.list_camps_with_stats(self.db_path, community_id=target_org)
+            camps = local_camps
         if record_ids and records:
             rec_id_set = {str(x).strip() for x in record_ids if str(x).strip()}
             records = [r for r in records if str(r.get("id")) in rec_id_set or str(r.get("record_id")) in rec_id_set]

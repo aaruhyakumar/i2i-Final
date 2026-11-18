@@ -143,8 +143,8 @@ def _safe_int_env(var: str, default: int, lo: int, hi: int) -> int:
         logger.warning("Env %s=%r is not a valid integer; using default %d", var, raw, default)
         return default
 
-_ENV_MAX_EDGE    = _safe_int_env("IMAGE_MAX_EDGE_PX",  1568, 512, 4096)
-_ENV_QUALITY     = _safe_int_env("IMAGE_JPEG_QUALITY", 82,   50,  95)
+_ENV_MAX_EDGE    = _safe_int_env("IMAGE_MAX_EDGE_PX",  1280, 512, 4096)
+_ENV_QUALITY     = _safe_int_env("IMAGE_JPEG_QUALITY", 80,   50,  95)
 # Contrast enhancement is DISABLED by default until the Stage 2 benchmark
 # confirms benefit.  Set IMAGE_CONTRAST_ENHANCE=1 to enable.
 _ENV_CONTRAST_EN = os.getenv("IMAGE_CONTRAST_ENHANCE", "0").strip() in ("1", "true", "yes")

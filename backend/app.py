@@ -13,6 +13,7 @@ import sys
 import io
 import re
 import logging
+import threading
 from datetime import datetime, timezone
 from typing import Tuple, Dict, Any, Optional
 from flask import Flask, request, jsonify, Response, send_from_directory, send_file, g
@@ -540,27 +541,31 @@ def create_app(db_path: Optional[str] = None) -> Flask:
     def resolve_camp(camp_id: Optional[str]) -> Optional[Dict[str, Any]]:
         if not camp_id:
             return None
-        camp = None
+        # 1. Local-first: Check local SQLite (instant < 1ms)
+        camp = database.get_camp_by_id(camp_id, db_path)
+        if camp:
+            return camp
+        # 2. Remote fallback: Check Supabase
         if is_supabase_enabled():
             try:
                 camp = supabase_service.get_camp_by_id(camp_id)
             except Exception as e:
                 logger.warning("Supabase resolve_camp notice: %s", e)
-        if not camp:
-            camp = database.get_camp_by_id(camp_id, db_path)
         return camp
 
     def resolve_record(record_id: Optional[str]) -> Optional[Dict[str, Any]]:
         if not record_id:
             return None
-        rec = None
+        # 1. Local-first: Check local SQLite (instant < 1ms)
+        rec = database.get_record_by_id(record_id, db_path)
+        if rec:
+            return rec
+        # 2. Remote fallback: Check Supabase
         if is_supabase_enabled():
             try:
                 rec = supabase_service.get_record_by_id(record_id)
             except Exception as e:
                 logger.warning("Supabase resolve_record notice: %s", e)
-        if not rec:
-            rec = database.get_record_by_id(record_id, db_path)
         return rec
 
     def get_resource_community(resource: Optional[Dict[str, Any]]) -> Optional[str]:
@@ -1234,29 +1239,9 @@ def create_app(db_path: Optional[str] = None) -> Flask:
         if user_role == "field_worker":
             scanned_by = getattr(g, "user_id", None)
 
-        if is_supabase_enabled():
-            try:
-                sup_recs = supabase_service.list_records(
-                    camp_id=camp_id,
-                    status=status_filter,
-                    community_id=filter_comm,
-                    query=query,
-                    scanned_by=scanned_by,
-                    limit=limit
-                )
-                if sup_recs is not None:
-                    if not filter_comm:
-                        sup_recs = [r for r in sup_recs if get_resource_community(r) in caller_comms]
-                    demo_mode_active = os.getenv("DEMO_MODE", "0").lower() in ("1", "true")
-                    app_env = os.getenv("APP_ENV", "production").strip().lower()
-                    is_dev_env = demo_mode_active or (app_env not in ("production", "prod"))
-                    if sup_recs or not is_dev_env:
-                        return jsonify(sup_recs)
-            except Exception as e:
-                logger.error("Supabase list_records error: %s", e)
-
+        local_recs = []
         if filter_comm:
-            recs = database.list_records(
+            local_recs = database.list_records(
                 camp_id=camp_id,
                 status=status_filter,
                 query=query,
@@ -1265,7 +1250,7 @@ def create_app(db_path: Optional[str] = None) -> Flask:
                 page=page,
                 limit=limit,
                 db_path=db_path
-            )
+            ) or []
         else:
             all_recs = []
             seen_ids = set()
@@ -1284,9 +1269,31 @@ def create_app(db_path: Optional[str] = None) -> Flask:
                     if r.get("id") not in seen_ids:
                         seen_ids.add(r.get("id"))
                         all_recs.append(r)
-            recs = all_recs[:limit]
+            local_recs = all_recs[:limit]
 
-        return jsonify(recs)
+        if is_supabase_enabled():
+            try:
+                sup_recs = supabase_service.list_records(
+                    camp_id=camp_id,
+                    status=status_filter,
+                    community_id=filter_comm,
+                    query=query,
+                    scanned_by=scanned_by,
+                    limit=limit
+                )
+                if sup_recs is not None:
+                    if not filter_comm:
+                        sup_recs = [r for r in sup_recs if get_resource_community(r) in caller_comms]
+                    # Merge local records with Supabase records (local wins for newly saved records)
+                    merged = {r.get("id"): r for r in sup_recs if r.get("id")}
+                    for lr in local_recs:
+                        if lr.get("id"):
+                            merged[lr["id"]] = lr
+                    return jsonify(list(merged.values())[:limit])
+            except Exception as e:
+                logger.error("Supabase list_records error: %s", e)
+
+        return jsonify(local_recs)
 
     @app.route("/api/records/<record_id>", methods=["GET"])
     def get_record(record_id):
@@ -1453,19 +1460,19 @@ def create_app(db_path: Optional[str] = None) -> Flask:
         if not payload.get("scanned_by"):
             payload["scanned_by"] = getattr(g, 'user_id', 'demo_user')
         try:
-            if is_supabase_enabled():
-                try:
-                    created = supabase_service.insert_record(payload)
-                    # Also persist locally in SQLite for resilience using identical ID
-                    try:
-                        record_service.create_record(payload)
-                    except Exception as local_sync_error:
-                        logger.warning("Failed to sync record to local SQLite: %s", local_sync_error)
-                    return jsonify(created), 201
-                except Exception as e:
-                    logger.error("Failed to insert record in Supabase: %s; falling back to SQLite", e)
-
+            # 1. Local-First: Persist to SQLite immediately (< 2 ms)
             created = record_service.create_record(payload)
+
+            # 2. Asynchronous Sync: Sync to Supabase in background thread without blocking the user
+            if is_supabase_enabled():
+                def _bg_sync_create(rec_data):
+                    try:
+                        supabase_service.insert_record(rec_data)
+                    except Exception as s_err:
+                        logger.warning("Background Supabase record insert notice: %s", s_err)
+
+                threading.Thread(target=_bg_sync_create, args=(dict(payload),), daemon=True).start()
+
             return jsonify(created), 201
         except ValueError as e:
             return jsonify({"error": str(e)}), 400
@@ -1516,13 +1523,12 @@ def create_app(db_path: Optional[str] = None) -> Flask:
             payload["approved_by"] = None
             payload["approved_at"] = None
 
-        if is_supabase_enabled():
-            try:
-                supabase_service.update_record(record_id, payload)
-            except Exception as e:
-                logger.error("Supabase update_record error: %s", e)
+        # 1. Local-First: Update record in SQLite immediately (< 1 ms)
+        updated = database.update_record(record_id, payload, db_path)
+        if not updated:
+            return jsonify({"error": "Record not found"}), 404
 
-        # Rule 4.5: Write audit row for every edited field
+        # 2. Rule 4.5: Write audit row for every edited field locally
         for field, new_val in payload.items():
             if field in ("updated_at", "version"):
                 continue
@@ -1540,9 +1546,16 @@ def create_app(db_path: Optional[str] = None) -> Flask:
                     db_path=db_path
                 )
 
-        updated = database.update_record(record_id, payload, db_path)
-        if not updated:
-            return jsonify({"error": "Record not found"}), 404
+        # 3. Asynchronous Sync: Sync updates to Supabase in background thread
+        if is_supabase_enabled():
+            def _bg_sync_update(r_id, p_data):
+                try:
+                    supabase_service.update_record(r_id, p_data)
+                except Exception as e:
+                    logger.warning("Background Supabase update_record notice: %s", e)
+
+            threading.Thread(target=_bg_sync_update, args=(record_id, dict(payload)), daemon=True).start()
+
         return jsonify(updated)
 
     @app.route("/api/records/<record_id>", methods=["DELETE"])
@@ -1755,36 +1768,30 @@ def create_app(db_path: Optional[str] = None) -> Flask:
     def lock_record(record_id):
         data = request.get_json(silent=True) or {}
         doctor_name = data.get("doctor_name") or request.headers.get("X-Doctor-ID") or "Dr. Priya"
-        if is_supabase_enabled():
-            try:
-                sup_res = supabase_service.lock_record(record_id, doctor_name)
-                if sup_res.get("success"):
-                    try:
-                        database.lock_record(record_id, doctor_name, db_path=db_path)
-                    except Exception:
-                        pass
-                    return jsonify(sup_res)
-            except Exception as e:
-                logger.error("Supabase lock error: %s", e)
+        # Local-first: lock instantly in SQLite
         res = database.lock_record(record_id, doctor_name, db_path=db_path)
+        if is_supabase_enabled():
+            def _bg_lock(r_id, doc):
+                try:
+                    supabase_service.lock_record(r_id, doc)
+                except Exception as e:
+                    logger.debug("Background Supabase lock notice: %s", e)
+            threading.Thread(target=_bg_lock, args=(record_id, doctor_name), daemon=True).start()
         return jsonify(res)
 
     @app.route("/api/records/<record_id>/unlock", methods=["POST"])
     def unlock_record(record_id):
         data = request.get_json(silent=True) or {}
         doctor_name = data.get("doctor_name") or request.headers.get("X-Doctor-ID") or "Dr. Priya"
-        if is_supabase_enabled():
-            try:
-                sup_unlocked = supabase_service.unlock_record(record_id, doctor_name)
-                if sup_unlocked:
-                    try:
-                        database.unlock_record(record_id, doctor_name, db_path=db_path)
-                    except Exception:
-                        pass
-                    return jsonify({"success": True, "unlocked": True})
-            except Exception as e:
-                logger.error("Supabase unlock error: %s", e)
+        # Local-first: unlock instantly in SQLite
         success = database.unlock_record(record_id, doctor_name, db_path=db_path)
+        if is_supabase_enabled():
+            def _bg_unlock(r_id, doc):
+                try:
+                    supabase_service.unlock_record(r_id, doc)
+                except Exception as e:
+                    logger.debug("Background Supabase unlock notice: %s", e)
+            threading.Thread(target=_bg_unlock, args=(record_id, doctor_name), daemon=True).start()
         return jsonify({"success": success, "unlocked": success})
 
     @app.route("/api/records/validate", methods=["POST"])

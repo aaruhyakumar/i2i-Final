@@ -52,6 +52,7 @@ Rules:
 - Normal or abnormal fields return exactly 'Normal', 'Abnormal' or null, with details in the _d field.
 - Copy numbers exactly as written. Do not convert units.
 - Doctors' shorthand may appear: BP, PR, HR, Wt, Ht, RBS, NAD, WNL, HTN, T2DM, Adv, F/U, Ref, Rx, O/E, H/O, C/O.
+- Gender / Sex Checkboxes: Look for Gender / Sex options ('Male', 'Female', 'Other'). A tick (✓), check, cross (✗), slash, dot, or circled word indicates selection. Return strictly "Male", "Female", or "Other".
 - Do not diagnose or add advice.
 
 Field keys to extract:
@@ -82,10 +83,14 @@ Rules:
 - Normal or abnormal fields return exactly 'Normal', 'Abnormal' or null, with details in the _d field.
 - Checkboxes, tick marks & options:
   * Any checkmark (✓), tick, diagonal slash (/), vertical stroke (|), dot, filled square, or circled option indicates selected (Yes or the chosen option).
-  * Circled or underlined words (e.g. circled 'General Health', circled 'Male', circled 'Normal', circled 'Unaided') indicate that option is selected.
+  * Circled or underlined words (e.g. circled 'General Health', circled 'Male', circled 'Female', circled 'Normal', circled 'Unaided') indicate that option is selected.
   * Handwritten 'Yes', 'Y', 'No', 'N', 'Normal', 'NAD', 'WNL' in or beside a checkbox or row indicates that selection.
   * A cross (✗) placed in a checkbox or crossing out an option indicates unselected / No, unless it is the only marked box in a selection group indicating the choice.
   * If a box is crossed out or struck through with a line and another is ticked, read the intended selection.
+- Gender / Sex Checkboxes:
+  * Carefully examine the Gender section ('Male' / 'Female' / 'Other' checkboxes or labels).
+  * Look for any checkmark (✓), tick, cross (✗), slash (/), dot, shaded square, or circled word ('Male' or 'Female').
+  * Return strictly "Male", "Female", or "Other". Never return null if either Male or Female is marked.
 - Brackets & multi-row findings:
   * When a curly bracket '{' or vertical line spans multiple items (e.g. Nose and Throat, or Skin and Hair) with 'N', 'Normal', 'NAD', 'WNL' or a note next to it, apply that status to all spanned items (e.g. sys_nose='Normal', sys_throat='Normal').
 - Bilateral findings:
@@ -689,6 +694,14 @@ def validate_and_sanitize_extraction(raw_payload: Any) -> Dict[str, Any]:
     full_name = fields.get("full_name", [None, 0])[0] or fields.get("person_name", [None, 0])[0]
     age = fields.get("age", [None, 0])[0]
     gender = fields.get("gender", [None, 0])[0]
+    if gender:
+        g_raw = str(gender).strip().lower()
+        if g_raw in ("f", "female", "girl", "woman", "w") or g_raw.startswith("fem"):
+            gender = "Female"
+        elif g_raw in ("m", "male", "boy", "man") or g_raw.startswith("mal"):
+            gender = "Male"
+        elif g_raw in ("o", "other", "others"):
+            gender = "Other"
     bp = fields.get("bp", [None, 0])[0] or fields.get("blood_pressure", [None, 0])[0] or fields.get("blood_pressure_mmhg", [None, 0])[0]
     wt = fields.get("weight_kg", [None, 0])[0] or fields.get("weight", [None, 0])[0]
     ht = fields.get("height_cm", [None, 0])[0] or fields.get("height", [None, 0])[0]
@@ -764,7 +777,7 @@ def validate_and_sanitize_extraction(raw_payload: Any) -> Dict[str, Any]:
         "school_college_name": _format_meta_field(p_info_raw.get("school_college_name") or fields.get("institution") or fields.get("school_name"), 1),
         "staff_student_type": _format_meta_field(p_info_raw.get("staff_student_type") or fields.get("staff_or_student"), 1),
         "full_name": _format_meta_field(p_info_raw.get("full_name") or fields.get("person_name") or fields.get("full_name"), 1),
-        "gender": _format_meta_field(p_info_raw.get("gender") or fields.get("gender"), 1),
+        "gender": _format_meta_field(gender or (p_info_raw.get("gender") if isinstance(p_info_raw, dict) else None) or fields.get("gender"), 1),
         "year_of_study": _format_meta_field(p_info_raw.get("year_of_study") or fields.get("year") or fields.get("class_and_section"), 1),
         "course_dept": _format_meta_field(p_info_raw.get("course_dept") or fields.get("course"), 1),
         "section": _format_meta_field(p_info_raw.get("section") or fields.get("section"), 1),
