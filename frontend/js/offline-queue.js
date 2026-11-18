@@ -625,6 +625,8 @@ export async function registerOfflineSupport(extractFn) {
     try {
       const reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
       console.log('[OfflineQueue] ServiceWorker registered:', reg.scope);
+      // Immediately check for SW script updates on the server
+      reg.update().catch(() => {});
     } catch (err) {
       console.warn('[OfflineQueue] ServiceWorker registration failed:', err.message);
     }

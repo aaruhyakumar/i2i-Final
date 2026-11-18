@@ -3,7 +3,7 @@
  * Connects the phone-first touch UI with Flask REST API & Vision AI.
  */
 
-import { api, offlineQueue, registerOfflineSupport, getFileBlobUrl } from './api.js?v=20261116_v2';
+import { api, offlineQueue, registerOfflineSupport, getFileBlobUrl } from './api.js?v=20261118_v9';
 import { DocumentScanner, DEFAULT_QUALITY_FALLBACK } from './scanner.js?v=20261116_bug07';
 
 
@@ -3483,7 +3483,14 @@ function proceedToPairsScreen() {
     if ($('rev-abdominal')) $('rev-abdominal').value = formatMed('abdominal_pain_indigestion_constipation');
     if ($('rev-ent')) $('rev-ent').value = formatMed('skin_hair_ear_nose_problems');
     if ($('rev-activity')) $('rev-activity').value = formatMed('physical_activity');
-    if ($('rev-social')) $('rev-social').value = formatMed('social_history');
+    
+    // Social History (Alcohol / Smoking) - Strictly suppressed for pediatric screening
+    const isPaedRecord = (record.target_group === 'paediatric' || record.is_paediatric || !record.target_group || record.target_group === 'school_health' || true);
+    const socialVal = formatMed('social_history');
+    if ($('rev-social')) $('rev-social').value = isPaedRecord ? (socialVal || 'N/A (Pediatric Screening)') : socialVal;
+    if ($('rev-social-container')) {
+      $('rev-social-container').style.display = isPaedRecord ? 'none' : 'block';
+    }
 
     // Tab 3: Family
     const formatFam = (k) => {
@@ -3515,18 +3522,26 @@ function proceedToPairsScreen() {
     let rawAbd = getVal(s_exam, 'abdomen', '');
     if (rawAbd) {
       rawAbd = rawAbd.replace(/\bexisting\b/gi, '').replace(/\(\s*\)/g, '').trim();
-      if (/normal/i.test(rawAbd) && /nad/i.test(rawAbd)) {
-        rawAbd = 'Normal';
+      rawAbd = rawAbd.replace(/\b(and|or)\s*$/i, '').trim();
+      rawAbd = rawAbd.replace(/[,;\-\s]+$/, '').trim();
+      if (/^(normal|nad)$/i.test(rawAbd) || (/normal/i.test(rawAbd) && /nad/i.test(rawAbd))) {
+        rawAbd = 'Soft, non-tender, no organomegaly';
       }
+    } else {
+      rawAbd = 'Soft, non-tender, no organomegaly';
     }
     if ($('rev-sys-abdomen')) $('rev-sys-abdomen').value = rawAbd;
 
     let rawCns = getVal(s_exam, 'central_nervous_system', '');
     if (rawCns) {
       rawCns = rawCns.replace(/\(\s*\)/g, '').trim();
-      if (/normal/i.test(rawCns) && /nad/i.test(rawCns)) {
-        rawCns = 'Normal';
+      rawCns = rawCns.replace(/\b(and|or)\s*$/i, '').trim();
+      rawCns = rawCns.replace(/[,;\-\s]+$/, '').trim();
+      if (/^(normal|nad)$/i.test(rawCns) || (/normal/i.test(rawCns) && /nad/i.test(rawCns))) {
+        rawCns = 'Conscious and oriented, normal reflexes';
       }
+    } else {
+      rawCns = 'Conscious and oriented, normal reflexes';
     }
     if ($('rev-sys-cns')) $('rev-sys-cns').value = rawCns;
 
@@ -4144,12 +4159,13 @@ function proceedToPairsScreen() {
 
     // 13. Systemic Exam details
     if (['sys-rs', 'sys-cvs', 'sys-abdomen', 'sys-cns', 'sys-ent', 'sys-skin', 'respiratory_system', 'cardiovascular_system', 'central_nervous_system', 'ear', 'nose', 'throat', 'skin', 'hair', 'musculoskeletal_system', 'otoscope_right_ear', 'otoscope_left_ear', 'sys_nose', 'sys_throat', 'sys_skin', 'sys_hair', 'sys_other_systems', 'ent', 'abdomen', 'cns', 'sys_abdomen', 'sys_cns', 'ent-rear', 'ent-lear', 'ent-nose', 'ent-throat'].includes(k)) {
-      const normalPhrases = ['normal', 'nad', 'wnl', 'clear', 'intact', 'unremarkable', 'nil', 'none', 'healthy', 'patent', 'tm intact', 'intact tm', 's1s2 heard', 'no abnormality', 'vesicular', 'soft, non-tender', 'soft non-tender', 'conscious, oriented', 'conscious oriented', 'not recorded'];
+      const lowCleaned = low.replace(/\b(non-?tender|not\s+tender|no\s+organomegaly|no\s+hepatomegaly|no\s+splenomegaly|no\s+mass|no\s+murmur[s]?|no\s+added\s+sounds?|no\s+lesions?)\b/g, '');
+      const normalPhrases = ['normal', 'nad', 'wnl', 'clear', 'intact', 'unremarkable', 'nil', 'none', 'healthy', 'patent', 'tm intact', 'intact tm', 's1s2 heard', 'no abnormality', 'vesicular', 'soft, non-tender', 'soft non-tender', 'soft', 'conscious, oriented', 'conscious oriented', 'conscious', 'oriented', 'not recorded'];
       const abnPhrases = ['wax', 'csom', 'aom', 'dull', 'retracted', 'perforation', 'discharge', 'abnormal', 'congestion', 'infection', 'impaction', 'cerumen', 'fluid', 'dns', 'deviated', 'polyp', 'rhinitis', 'obstruction', 'tonsill', 'pharyng', 'erythem', 'exudat', 'inflam', 'swollen', 'pityriasis', 'eczema', 'scabies', 'rash', 'lesion', 'hypopigmented', 'dermatitis', 'pediculosis', 'lice', 'nits', 'alopecia', 'dandruff', 'murmur', 'wheeze', 'rhonchi', 'crepitation', 'creps', 'hepatomegaly', 'splenomegaly', 'mass', 'tender', 'organomegaly'];
-      if (normalPhrases.some(n => low === n || low.startsWith(n))) {
-        if (!abnPhrases.some(a => low.includes(a))) return false;
+      if (normalPhrases.some(n => low === n || low.startsWith(n) || lowCleaned.includes(n))) {
+        if (!abnPhrases.some(a => lowCleaned.includes(a))) return false;
       }
-      if (abnPhrases.some(a => low.includes(a))) return true;
+      if (abnPhrases.some(a => lowCleaned.includes(a))) return true;
       if (!normalPhrases.some(n => low.includes(n))) return true;
       return false;
     }
@@ -4775,8 +4791,8 @@ function proceedToPairsScreen() {
 
     if ($('rev-sys-rs')) $('rev-sys-rs').value = 'Normal vesicular breath sounds, no added sounds (NAD)';
     if ($('rev-sys-cvs')) $('rev-sys-cvs').value = 'S1 S2 heard, normal rhythm, no murmurs (NAD)';
-    if ($('rev-sys-abdomen')) $('rev-sys-abdomen').value = 'Normal';
-    if ($('rev-sys-cns')) $('rev-sys-cns').value = 'Normal';
+    if ($('rev-sys-abdomen')) $('rev-sys-abdomen').value = 'Soft, non-tender, no organomegaly';
+    if ($('rev-sys-cns')) $('rev-sys-cns').value = 'Conscious and oriented, normal reflexes';
     if ($('rev-ent-rear')) $('rev-ent-rear').value = 'Normal (NAD)';
     if ($('rev-ent-lear')) $('rev-ent-lear').value = 'Normal (NAD)';
     if ($('rev-ent-nose')) $('rev-ent-nose').value = 'Normal (NAD)';

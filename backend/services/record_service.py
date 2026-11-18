@@ -1248,11 +1248,12 @@ class RecordService:
                     return True
                 return False
             else:
-                normal_words = ("normal", "nad", "wnl", "clear", "intact", "unremarkable", "nil", "none", "healthy", "patent", "s1s2 heard", "no abnormality", "vesicular")
+                low_cleaned = re.sub(r'\b(non-?tender|not\s+tender|no\s+organomegaly|no\s+hepatomegaly|no\s+splenomegaly|no\s+mass|no\s+murmur[s]?|no\s+added\s+sounds?)\b', '', low)
+                normal_words = ("normal", "nad", "wnl", "clear", "intact", "unremarkable", "nil", "none", "healthy", "patent", "s1s2 heard", "no abnormality", "vesicular", "soft", "conscious", "oriented")
                 abn_words = ("murmur", "wheeze", "rhonchi", "crepitation", "creps", "abnormal", "hepatomegaly", "splenomegaly", "mass", "tender", "organomegaly", "wax", "csom", "aom", "dull", "retracted", "perforation", "discharge", "congestion", "infection", "impaction", "cerumen", "dns", "polyp", "tonsill", "pharyng", "eczema", "scabies", "rash", "lice", "nits", "alopecia")
-                if any(n in low for n in normal_words) and not any(a in low for a in abn_words):
+                if (any(n in low for n in normal_words) or any(n in low_cleaned for n in normal_words)) and not any(a in low_cleaned for a in abn_words):
                     return False
-                if any(a in low for a in abn_words):
+                if any(a in low_cleaned for a in abn_words):
                     return True
                 if not any(n in low for n in normal_words):
                     return True
@@ -1447,10 +1448,11 @@ class RecordService:
             return False
 
         elif col_key == "sys_other_systems":
-            if any(n in low for n in ("normal", "nad", "wnl", "clear", "nil", "none", "unremarkable", "s1s2 heard", "no abnormality", "vesicular")):
-                if not any(k in low for k in ("murmur", "wheeze", "rhonchi", "crepitation", "creps", "abnormal", "hepatomegaly", "splenomegaly", "mass", "tender", "organomegaly")):
+            low_cleaned = re.sub(r'\b(non-?tender|not\s+tender|no\s+organomegaly|no\s+hepatomegaly|no\s+splenomegaly|no\s+mass|no\s+murmur[s]?|no\s+added\s+sounds?)\b', '', low)
+            if any(n in low for n in ("normal", "nad", "wnl", "clear", "nil", "none", "unremarkable", "s1s2 heard", "no abnormality", "vesicular", "soft", "conscious", "oriented")):
+                if not any(k in low_cleaned for k in ("murmur", "wheeze", "rhonchi", "crepitation", "creps", "abnormal", "hepatomegaly", "splenomegaly", "mass", "tender", "organomegaly")):
                     return False
-            if any(k in low for k in ("murmur", "wheeze", "rhonchi", "crepitation", "creps", "abnormal", "hepatomegaly", "splenomegaly", "mass", "tender", "organomegaly")):
+            if any(k in low_cleaned for k in ("murmur", "wheeze", "rhonchi", "crepitation", "creps", "abnormal", "hepatomegaly", "splenomegaly", "mass", "tender", "organomegaly")):
                 return True
             return False
 

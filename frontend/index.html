@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Bricolage+Grotesque:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="icon" type="image/png" href="assets/logo.png">
-  <link rel="stylesheet" href="css/styles.css?v=20261118_red_highlight">
+  <link rel="stylesheet" href="css/styles.css?v=20261118_v9">
   <!-- Ink 2 Insight Full-Screen Brand Intro -->
   <link rel="stylesheet" href="intro/intro.css?v=20261110">
   <script src="intro/intro.js"></script>
@@ -1158,10 +1158,10 @@
 
         <!-- 8-Section Category Tabs -->
         <div class="review-tabs" id="static-review-tabs">
-          <button class="review-tab-btn active" id="rtab-personal" onclick="window.app.switchReviewTab('personal')">1. Personal Info</button>
+          <button class="review-tab-btn active" id="rtab-personal" onclick="window.app.switchReviewTab('personal')">1. Personal & Vitals</button>
           <button class="review-tab-btn" id="rtab-medical" onclick="window.app.switchReviewTab('medical')">2. Medical History</button>
           <button class="review-tab-btn" id="rtab-family" onclick="window.app.switchReviewTab('family')">3. Family History</button>
-          <button class="review-tab-btn" id="rtab-health" onclick="window.app.switchReviewTab('health')">4. Vitals & Assessment</button>
+          <button class="review-tab-btn" id="rtab-health" onclick="window.app.switchReviewTab('health')">4. Physical Exam</button>
           <button class="review-tab-btn" id="rtab-system" onclick="window.app.switchReviewTab('system')">5. Systemic Exam</button>
           <button class="review-tab-btn" id="rtab-vision" onclick="window.app.switchReviewTab('vision')">6. Vision & Dental</button>
           <button class="review-tab-btn" id="rtab-referral" onclick="window.app.switchReviewTab('referral')">7. Referral & Sign</button>
@@ -1269,60 +1269,9 @@
               <input id="rev-address" placeholder="Address">
             </div>
           </div>
-        </div>
 
-        <!-- Section 2: Medical History -->
-        <div class="review-section" id="rsec-medical">
-          <label for="rev-allergies">Known Allergies <span class="field-badge-warn" id="badge-allergies" style="display:none;">Check value</span></label>
-          <input id="rev-allergies" placeholder="No known allergies / details" oninput="window.app.onVitalsChanged()">
-          <div class="crop-snippet-preview" id="crop-preview-allergies" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
-            <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
-            <canvas id="crop-canvas-allergies" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
-          </div>
-
-          <label for="rev-surgery">Previous Surgery / Hospitalization</label>
-          <input id="rev-surgery" placeholder="Surgery / Hospitalization details">
-
-          <label for="rev-medications">Current / Previous Medications</label>
-          <input id="rev-medications" placeholder="Medications details">
-
-          <label for="rev-abdominal">Abdominal Pain / Constipation / Indigestion</label>
-          <input id="rev-abdominal" placeholder="None / details">
-
-          <label for="rev-ent">Skin / Hair / ENT Problems</label>
-          <input id="rev-ent" placeholder="None / details">
-
-          <label for="rev-activity">Physical Activity / Exercise</label>
-          <input id="rev-activity" placeholder="Daily walking, gym, etc.">
-
-          <label for="rev-social">Social History (Alcohol / Smoking)</label>
-          <input id="rev-social" placeholder="Non-smoker, occasional, etc.">
-        </div>
-
-        <!-- Section 3: Family History -->
-        <div class="review-section" id="rsec-family">
-          <label for="rev-fam-diabetes">Family: Diabetes</label>
-          <input id="rev-fam-diabetes" placeholder="Relationship / Details">
-
-          <label for="rev-fam-hypertension">Family: Hypertension</label>
-          <input id="rev-fam-hypertension" placeholder="Relationship / Details">
-
-          <label for="rev-fam-heart">Family: Heart Disease</label>
-          <input id="rev-fam-heart" placeholder="None / details">
-
-          <label for="rev-fam-thyroid">Family: Thyroid</label>
-          <input id="rev-fam-thyroid" placeholder="None / details">
-
-          <label for="rev-fam-asthma">Family: Asthma</label>
-          <input id="rev-fam-asthma" placeholder="None / details">
-
-          <label for="rev-fam-other">Family: Other Conditions</label>
-          <input id="rev-fam-other" placeholder="None">
-        </div>
-
-        <!-- Section 4: Health Assessment -->
-        <div class="review-section" id="rsec-health">
-          <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px; margin-bottom:14px;">
+          <!-- Section 1 Vitals & Anthropometrics (Front Screen Verification) -->
+          <div style="background:#F8FAFC; border:1px solid #CBD5E1; border-radius:10px; padding:12px; margin-top:14px; margin-bottom:14px;">
             <div style="font-size:12px; font-weight:800; color:#334155; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">
               📊 Patient Vitals & Anthropometrics
             </div>
@@ -1444,7 +1393,61 @@
               </div>
             </div>
           </div>
+        </div>
 
+        <!-- Section 2: Medical History -->
+        <div class="review-section" id="rsec-medical">
+          <label for="rev-allergies">Known Allergies <span class="field-badge-warn" id="badge-allergies" style="display:none;">Check value</span></label>
+          <input id="rev-allergies" placeholder="No known allergies / details" oninput="window.app.onVitalsChanged()">
+          <div class="crop-snippet-preview" id="crop-preview-allergies" style="display:none;margin-top:6px;border-radius:6px;border:1px solid #FCD34D;background:#FFFBEB;padding:6px;overflow:hidden;">
+            <small style="font-size:10px;font-weight:700;color:#92400E;display:block;margin-bottom:3px;">🔍 Source Handwriting Snippet</small>
+            <canvas id="crop-canvas-allergies" style="max-width:100%;height:auto;border-radius:4px;display:block;"></canvas>
+          </div>
+
+          <label for="rev-surgery">Previous Surgery / Hospitalization</label>
+          <input id="rev-surgery" placeholder="Surgery / Hospitalization details">
+
+          <label for="rev-medications">Current / Previous Medications</label>
+          <input id="rev-medications" placeholder="Medications details">
+
+          <label for="rev-abdominal">Abdominal Pain / Constipation / Indigestion</label>
+          <input id="rev-abdominal" placeholder="None / details">
+
+          <label for="rev-ent">Skin / Hair / ENT Problems</label>
+          <input id="rev-ent" placeholder="None / details">
+
+          <label for="rev-activity">Physical Activity / Exercise</label>
+          <input id="rev-activity" placeholder="Daily walking, gym, etc.">
+
+          <div id="rev-social-container">
+            <label for="rev-social">Social History (Alcohol / Smoking)</label>
+            <input id="rev-social" placeholder="Non-smoker, occasional, etc.">
+          </div>
+        </div>
+
+        <!-- Section 3: Family History -->
+        <div class="review-section" id="rsec-family">
+          <label for="rev-fam-diabetes">Family: Diabetes</label>
+          <input id="rev-fam-diabetes" placeholder="Relationship / Details">
+
+          <label for="rev-fam-hypertension">Family: Hypertension</label>
+          <input id="rev-fam-hypertension" placeholder="Relationship / Details">
+
+          <label for="rev-fam-heart">Family: Heart Disease</label>
+          <input id="rev-fam-heart" placeholder="None / details">
+
+          <label for="rev-fam-thyroid">Family: Thyroid</label>
+          <input id="rev-fam-thyroid" placeholder="None / details">
+
+          <label for="rev-fam-asthma">Family: Asthma</label>
+          <input id="rev-fam-asthma" placeholder="None / details">
+
+          <label for="rev-fam-other">Family: Other Conditions</label>
+          <input id="rev-fam-other" placeholder="None">
+        </div>
+
+        <!-- Section 4: Physical Examination -->
+        <div class="review-section" id="rsec-health">
           <div style="display:flex; justify-content:flex-end; margin-bottom:12px;">
             <button type="button" class="btn ghost" style="width:auto; padding:6px 14px; font-size:12px; font-weight:700; color:#059669; border-color:#10B981; background:#ECFDF5;" onclick="window.app.markPhysicalExamNormal()">
               ✨ Quick-Fill Physical Exam as Normal (NAD)
@@ -2668,6 +2671,6 @@
   </div>
 
   <!-- Main Application Logic Module (Cache-Busted) -->
-  <script type="module" src="js/app.js?v=20261118_v7"></script>
+  <script type="module" src="js/app.js?v=20261118_v9"></script>
 </body>
 </html>
