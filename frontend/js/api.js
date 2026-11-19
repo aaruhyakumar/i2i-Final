@@ -522,11 +522,15 @@ export const api = {
     });
   },
 
-  async approveRecord(recordId, approvedBy = 'Attending Physician') {
+  async approveRecord(recordId, approvedBy = 'Attending Physician', recordUpdates = null) {
+    const payload = { approved_by: approvedBy };
+    if (recordUpdates && typeof recordUpdates === 'object') {
+      Object.assign(payload, recordUpdates);
+    }
     return request(`/api/records/${encodeURIComponent(recordId)}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approved_by: approvedBy })
+      body: JSON.stringify(payload)
     });
   },
 

@@ -1714,6 +1714,27 @@ def create_app(db_path: Optional[str] = None) -> Flask:
             }), 403
 
         existing = resolve_record(record_id)
+        payload = request.get_json(silent=True) or {}
+        if not existing:
+            rec_cand = payload.get("updates") if isinstance(payload.get("updates"), dict) else payload
+            if rec_cand and (rec_cand.get("person_name") or rec_cand.get("patient_name")):
+                rec_payload = dict(rec_cand)
+                rec_payload["id"] = record_id
+                rec_payload["status"] = "needs_review"
+                if not rec_payload.get("camp_id"):
+                    rec_payload["camp_id"] = "camp_default"
+                try:
+                    database.ensure_camp_exists(rec_payload["camp_id"], rec_payload.get("community_id"), db_path)
+                    database.insert_record(rec_payload, db_path)
+                    existing = database.get_record_by_id(record_id, db_path)
+                    if is_supabase_enabled():
+                        try:
+                            supabase_service.insert_record(rec_payload)
+                        except Exception:
+                            pass
+                except Exception as sh_err:
+                    logger.warning("Approve self-heal insert notice: %s", sh_err)
+
         if not existing:
             return jsonify({"error": "Record not found"}), 404
 

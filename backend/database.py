@@ -869,6 +869,71 @@ def create_camp(
         conn.commit()
     return get_camp_by_id(camp_id, db_path) # type: ignore
 
+def ensure_camp_exists(
+    camp_id: Optional[str] = None,
+    community_id: Optional[str] = None,
+    db_path: str = DEFAULT_DB_PATH
+) -> str:
+    """Ensure a camp row exists in the SQLite camps table to satisfy foreign keys."""
+    init_db(db_path)
+    clean_cid = str(camp_id or "").strip()
+    if not clean_cid or clean_cid.lower() in ("none", "null", ""):
+        clean_cid = "camp_default"
+
+    with get_db_connection(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT id FROM camps WHERE id = ? LIMIT 1;", (clean_cid,))
+        if cursor.fetchone():
+            return clean_cid
+
+        # Check if Supabase has this camp and mirror it
+        try:
+            from backend.services.supabase_service import supabase_service
+            if supabase_service.is_available():
+                sup_camp = supabase_service.get_camp_by_id(clean_cid)
+                if sup_camp:
+                    now = datetime.now(timezone.utc).isoformat()
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO camps (id, name, date_str, expected_records, location, created_by, community_id, target_group, created_at, updated_at)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                    """, (
+                        clean_cid,
+                        sup_camp.get("name") or "General Health Screening Camp",
+                        sup_camp.get("date_str") or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+                        max(1, int(sup_camp.get("expected_records") or 100)),
+                        sup_camp.get("location") or "Health Camp",
+                        sup_camp.get("created_by") or "System",
+                        sup_camp.get("community_id") or community_id or "comm_default",
+                        sup_camp.get("target_group") or "adult",
+                        now,
+                        now
+                    ))
+                    conn.commit()
+                    return clean_cid
+        except Exception:
+            pass
+
+        # Auto-create fallback camp in SQLite so FK constraint passes
+        now_iso = datetime.now(timezone.utc).isoformat()
+        now_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        cursor.execute("""
+            INSERT OR REPLACE INTO camps (id, name, date_str, expected_records, location, created_by, community_id, target_group, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        """, (
+            clean_cid,
+            "General Health Screening Camp",
+            now_date,
+            100,
+            "Health Camp",
+            "System",
+            community_id or "comm_default",
+            "adult",
+            now_iso,
+            now_iso
+        ))
+        conn.commit()
+        return clean_cid
+
 def update_camp(camp_id: str, name: str, expected_records: int, date_str: str = "Today", location: Optional[str] = None, db_path: str = DEFAULT_DB_PATH) -> Optional[Dict[str, Any]]:
     """Update existing screening camp details."""
     init_db(db_path)
@@ -986,7 +1051,7 @@ def list_records(
         return [_format_record_row(r) for r in rows]
 
 def get_record_by_id(record_id: str, db_path: str = DEFAULT_DB_PATH) -> Optional[Dict[str, Any]]:
-    """Fetch a single record by its stable ID."""
+    """Fetch a single record by its stable ID, with multi-table and cloud fallback."""
     init_db(db_path)
     with get_db_connection(db_path) as conn:
         cursor = conn.cursor()
@@ -997,9 +1062,67 @@ def get_record_by_id(record_id: str, db_path: str = DEFAULT_DB_PATH) -> Optional
             WHERE r.id = ?;
         """, (record_id,))
         row = cursor.fetchone()
-        if not row:
-            return None
-        return _format_record_row(row)
+        if row:
+            return _format_record_row(row)
+
+        # Fallback check segregated paediatric table
+        cursor.execute("""
+            SELECT p.*, c.name AS camp_name, COALESCE(p.community_id, c.community_id) AS community_id
+            FROM paediatric_records p
+            LEFT JOIN camps c ON p.camp_id = c.id
+            WHERE p.id = ?;
+        """, (record_id,))
+        row = cursor.fetchone()
+        if row:
+            rec = _format_record_row(row)
+            try:
+                insert_record(rec, db_path)
+            except Exception:
+                pass
+            return rec
+
+        # Fallback check segregated adult table
+        cursor.execute("""
+            SELECT a.*, c.name AS camp_name, COALESCE(a.community_id, c.community_id) AS community_id
+            FROM adult_records a
+            LEFT JOIN camps c ON a.camp_id = c.id
+            WHERE a.id = ?;
+        """, (record_id,))
+        row = cursor.fetchone()
+        if row:
+            rec = _format_record_row(row)
+            try:
+                insert_record(rec, db_path)
+            except Exception:
+                pass
+            return rec
+
+    # Supabase cloud fallback
+    try:
+        from backend.services.supabase_service import supabase_service
+        if supabase_service.is_available():
+            sup_rec = supabase_service.get_record_by_id(record_id)
+            if sup_rec:
+                try:
+                    insert_record(sup_rec, db_path)
+                    with get_db_connection(db_path) as conn:
+                        cursor = conn.cursor()
+                        cursor.execute("""
+                            SELECT r.*, c.name AS camp_name, COALESCE(r.community_id, c.community_id) AS community_id
+                            FROM records r 
+                            LEFT JOIN camps c ON r.camp_id = c.id
+                            WHERE r.id = ?;
+                        """, (record_id,))
+                        row = cursor.fetchone()
+                        if row:
+                            return _format_record_row(row)
+                except Exception:
+                    pass
+                return sup_rec
+    except Exception as e:
+        logger.debug("Supabase get_record_by_id fallback notice: %s", e)
+
+    return None
 
 def get_adult_record_by_id(record_id: str, db_path: str = DEFAULT_DB_PATH) -> Optional[Dict[str, Any]]:
     """Fetch a single adult record from the segregated adult_records table."""
@@ -1105,6 +1228,8 @@ def _clean_num_val(val: Any) -> Optional[float]:
 def insert_adult_record(record_data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
     """Insert into segregated adult_records table."""
     init_db(db_path)
+    camp_id = ensure_camp_exists(record_data.get("camp_id"), record_data.get("community_id"), db_path)
+    record_data["camp_id"] = camp_id
     rec_id = record_data.get("id") or f"rec_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{os.urandom(3).hex()}"
     now = datetime.now(timezone.utc).isoformat()
     sr = record_data.get("structured_record") or {}
@@ -1209,6 +1334,8 @@ def insert_adult_record(record_data: Dict[str, Any], db_path: str = DEFAULT_DB_P
 def insert_paediatric_record(record_data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
     """Insert into segregated paediatric_records table."""
     init_db(db_path)
+    camp_id = ensure_camp_exists(record_data.get("camp_id"), record_data.get("community_id"), db_path)
+    record_data["camp_id"] = camp_id
     rec_id = record_data.get("id") or f"rec_{datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')}_{os.urandom(3).hex()}"
     now = datetime.now(timezone.utc).isoformat()
     sr = record_data.get("structured_record") or {}
@@ -1438,7 +1565,8 @@ def link_record_files(
 def insert_record(record_data: Dict[str, Any], db_path: str = DEFAULT_DB_PATH) -> Dict[str, Any]:
     """Insert a new record, routing to segregated adult_records or paediatric_records, and syncing records."""
     init_db(db_path)
-    camp_id = record_data.get("camp_id")
+    camp_id = ensure_camp_exists(record_data.get("camp_id"), record_data.get("community_id"), db_path)
+    record_data["camp_id"] = camp_id
     tg = record_data.get("target_group")
     if not tg:
         if record_data.get("is_paediatric"):
@@ -3042,8 +3170,11 @@ def approve_record(
             if supabase_service.is_available():
                 sup_rec = supabase_service.get_record_by_id(record_id)
                 if sup_rec:
-                    insert_record(sup_rec, db_path)
-                    rec = get_record_by_id(record_id, db_path)
+                    try:
+                        insert_record(sup_rec, db_path)
+                    except Exception:
+                        pass
+                    rec = get_record_by_id(record_id, db_path) or sup_rec
         except Exception:
             pass
     if not rec:

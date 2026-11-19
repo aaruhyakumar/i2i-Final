@@ -5114,7 +5114,7 @@ function proceedToPairsScreen() {
       // 1. Review edits with full structured 7-tab updates
       await api.reviewRecord(state.activeRecord.id, updates, state.doctorName);
       // 2. Explicit approval action (checks no unresolved flags remain, bills quota, marks approved)
-      await api.approveRecord(state.activeRecord.id, state.doctorName);
+      await api.approveRecord(state.activeRecord.id, state.doctorName, updates);
       await api.unlockRecord(state.activeRecord.id, state.doctorName).catch(() => { });
 
       toast('Record approved and quota billed! 📋✅');
