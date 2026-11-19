@@ -11,6 +11,12 @@ import { DocumentScanner, DEFAULT_QUALITY_FALLBACK } from './scanner.js?v=202611
 const $ = id => document.getElementById(id);
 window.$ = $;
 
+function roundNum(val, d = 1) {
+  if (typeof val !== 'number' || isNaN(val)) return 0;
+  const factor = Math.pow(10, d);
+  return Math.round(val * factor) / factor;
+}
+
 // Application State
 const state = {
   currentScreen: 'splash',
@@ -3035,7 +3041,7 @@ function proceedToPairsScreen() {
       const tUploadStart = performance.now();
       const extractRes = await api.extractPages(p1, p2, campId, true, templateIds, requestId);
       const tUploadEnd = performance.now();
-      const clientUploadDurationMs = roundNum(tUploadEnd - tUploadStart, 1);
+      const clientUploadDurationMs = Math.round((tUploadEnd - tUploadStart) * 10) / 10;
 
       // Debug line comparing client and server blur scores for the same photo
       const clientBlurP1 = (state.clientPageQualities && state.clientPageQualities[0]) ? state.clientPageQualities[0].blur_score : 'N/A';
