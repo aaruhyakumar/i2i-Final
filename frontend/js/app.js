@@ -4981,7 +4981,11 @@ function proceedToPairsScreen() {
     state.missingApprovedOverride = true;
     const cb = window._proceedMissingCallback;
     closeMissingConfirmModal();
-    if (cb) cb();
+    if (cb) {
+      cb();
+    } else {
+      promptBillConfirmation();
+    }
   }
 
 
@@ -5014,6 +5018,68 @@ function proceedToPairsScreen() {
     if (tabKey === 'referral') {
       setTimeout(() => initSignaturePad(), 50);
     }
+  }
+
+  export function promptBillConfirmation() {
+    if (!state.activeRecord) return;
+
+    const essentialFields = [
+      { label: 'Patient Name', id: 'rev-name' },
+      { label: 'Age', id: 'rev-age' },
+      { label: 'Gender', id: 'rev-gender' },
+      { label: 'Height', id: 'rev-height' },
+      { label: 'Weight', id: 'rev-weight' },
+      { label: 'Blood Pressure', id: 'rev-bp' },
+      { label: 'Known Allergies', id: 'rev-allergies' }
+    ];
+
+    const blankEssentials = essentialFields
+      .filter(f => !($(f.id)?.value.trim()))
+      .map(f => f.label);
+
+    if (blankEssentials.length > 0 && !state.missingApprovedOverride) {
+      showMissingConfirmationModal(blankEssentials, () => {
+        promptBillConfirmation();
+      });
+      return;
+    }
+
+    // Consent Gating check
+    const consentChecked = $('rev-consent-screening')?.checked ?? true;
+    if (!consentChecked) {
+      toast('Approval refused: Patient or parental consent is required before clinical approval.', true);
+      return;
+    }
+
+    // Populate Bill Confirmation Modal details
+    const patNameEl = $('bill-confirm-patient-name');
+    if (patNameEl) {
+      patNameEl.textContent = $('rev-name')?.value.trim() || state.activeRecord.person_name || 'Patient';
+    }
+    const campNameEl = $('bill-confirm-camp-name');
+    if (campNameEl) {
+      const activeCamp = state.camps.find(c => c.id === (state.activeRecord.camp_id || state.selectedCampId));
+      campNameEl.textContent = activeCamp?.name || 'Screening Camp';
+    }
+    const docEl = $('bill-confirm-doctor');
+    if (docEl) {
+      docEl.textContent = state.doctorName || 'Attending Physician';
+    }
+
+    const modal = $('modal-bill-confirm');
+    if (modal) {
+      modal.style.display = 'flex';
+    }
+  }
+
+  export function closeBillConfirmModal() {
+    const modal = $('modal-bill-confirm');
+    if (modal) modal.style.display = 'none';
+  }
+
+  export async function executeBillAndProceedToExcel() {
+    closeBillConfirmModal();
+    await approveAndSaveRecord();
   }
 
   export async function approveAndSaveRecord() {
@@ -5110,8 +5176,9 @@ function proceedToPairsScreen() {
       await api.approveRecord(state.activeRecord.id, state.doctorName, updates);
       await api.unlockRecord(state.activeRecord.id, state.doctorName).catch(() => { });
 
-      toast('Record approved and quota billed! 📋✅');
-      go('home');
+      toast('Record approved and quota billed! Opening Excel spreadsheet… 📋📊');
+      const campId = state.activeRecord.camp_id || state.selectedCampId;
+      exportPaediatricExcel(campId);
     } catch (err) {
       toast('Approval failed: ' + err.message, true);
     } finally {
@@ -6860,6 +6927,9 @@ function proceedToPairsScreen() {
     showMissingConfirmationModal,
     closeMissingConfirmModal,
     confirmApproveDespiteMissing,
+    promptBillConfirmation,
+    closeBillConfirmModal,
+    executeBillAndProceedToExcel,
     toggleTorch,
     showQualityAlertModal,
     retryCaptureFromAlert,
