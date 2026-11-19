@@ -1908,6 +1908,24 @@ class RecordService:
         ws_summary = wb.add_worksheet("Paediatric Summary")
         self._populate_paediatric_summary_worksheet(wb, ws_summary, camp, records)
 
+        if records:
+            ws_pv = wb.add_worksheet("Physician Verification")
+            ws_pv.set_tab_color('#0D9488')
+            ws_pv.hide_gridlines(2)
+            try:
+                from backend.services.verification_renderer import render_physician_verification_card
+                curr_row = 1
+                for rec_idx, rec in enumerate(records[:10]):
+                    card_png = render_physician_verification_card(rec, camp=camp)
+                    ws_pv.insert_image(curr_row, 1, f"pv_{rec_idx}.png", {
+                        'image_data': io.BytesIO(card_png),
+                        'x_scale': 0.75,
+                        'y_scale': 0.75
+                    })
+                    curr_row += 52
+            except Exception as pv_err:
+                logger.warning("Could not embed Physician Verification card image: %s", pv_err)
+
         wb.close()
         output.seek(0)
         return output.getvalue()
@@ -1940,6 +1958,24 @@ class RecordService:
         # Sheet 3: Camp Summary
         ws_camps = wb.add_worksheet("Camp Summary")
         self._populate_camp_summary_worksheet(wb, ws_camps, camps)
+
+        if records:
+            ws_pv = wb.add_worksheet("Physician Verification")
+            ws_pv.set_tab_color('#0D9488')
+            ws_pv.hide_gridlines(2)
+            try:
+                from backend.services.verification_renderer import render_physician_verification_card
+                curr_row = 1
+                for rec_idx, rec in enumerate(records[:10]):
+                    card_png = render_physician_verification_card(rec, camp=camp)
+                    ws_pv.insert_image(curr_row, 1, f"pv_{rec_idx}.png", {
+                        'image_data': io.BytesIO(card_png),
+                        'x_scale': 0.75,
+                        'y_scale': 0.75
+                    })
+                    curr_row += 52
+            except Exception as pv_err:
+                logger.warning("Could not embed Physician Verification card image: %s", pv_err)
 
         wb.close()
         output.seek(0)
