@@ -1387,7 +1387,7 @@ def insert_paediatric_record(record_data: Dict[str, Any], db_path: str = DEFAULT
             _clean_field_val(record_data.get("muac") or vitals.get("muac")),
             _clean_field_val(record_data.get("screening_type") or sr.get("screening_type") or "School Health Screening"),
             _clean_field_val(record_data.get("school_name") or p_info.get("institution") or p_info.get("school_name")),
-            _clean_field_val(record_data.get("class_and_section") or f"{_clean_field_val(p_info.get('course')) or ''} {_clean_field_val(p_info.get('section')) or ''}".strip()),
+            _clean_field_val(record_data.get("class_and_section") or p_info.get("class_and_section") or p_info.get("class_section") or sr.get("class_and_section") or f"{_clean_field_val(p_info.get('course') or p_info.get('class')) or ''} {_clean_field_val(p_info.get('section')) or ''}".strip()),
             _clean_field_val(record_data.get("admission_id") or p_info.get("admission_id")),
             _clean_field_val(record_data.get("moc_doc_id") or p_info.get("moc_doc_id")),
             _clean_field_val(record_data.get("dob") or p_info.get("dob")),

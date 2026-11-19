@@ -1669,7 +1669,7 @@ class RecordService:
                 "moc_doc_id": _get_val(r, "moc_doc_id", ["personal_information", "moc_doc_id"]),
                 "admission_id": _get_val(r, "admission_id", ["personal_information", "admission_id"]),
                 "person_name": _get_val(r, "person_name", "full_name", ["personal_information", "person_name"], ["personal_information", "full_name"]),
-                "class_and_section": _get_val(r, "class_and_section", ["personal_information", "class_and_section"]) or f"{_get_val(r, ['personal_information', 'course'])} {_get_val(r, ['personal_information', 'section'])}".strip(),
+                "class_and_section": _get_val(r, "class_and_section", "class_section", ["personal_information", "class_and_section"], ["personal_information", "class_section"]) or f"{_get_val(r, ['personal_information', 'course'], ['personal_information', 'class'])} {_get_val(r, ['personal_information', 'section'])}".strip(),
                 "dob": _get_val(r, "dob", "date_of_birth", ["personal_information", "dob"]),
                 "age": _get_val(r, "age", "age_years", ["personal_information", "age"]),
                 "gender": _get_val(r, "gender", "sex", ["personal_information", "gender"]),

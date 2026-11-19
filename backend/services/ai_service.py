@@ -57,6 +57,15 @@ Rules:
 - Copy numbers exactly as written. Do not convert units.
 - Doctors' shorthand may appear: BP, PR, HR, Wt, Ht, RBS, NAD, WNL, HTN, T2DM, Adv, F/U, Ref, Rx, O/E, H/O, C/O.
 - Gender / Sex Checkboxes: Look for Gender / Sex options ('Male', 'Female', 'Other'). A tick (✓), check, cross (✗), slash, dot, or circled word indicates selection. Return strictly "Male", "Female", or "Other".
+- Class & Section (class_and_section):
+  * Locate Class / Standard / Grade and Section on the paper forms.
+  * Class can be written as Arabic numerals (1 to 12, e.g. '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', or ordinal '1st', '6th', '10th'), Roman numerals (I to XII, e.g. 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'), or pre-primary ('LKG', 'UKG', 'Nursery', 'Pre-KG', 'KG').
+  * Section is typically an uppercase English alphabet letter ('A', 'B', 'C', 'D', 'E', 'F', 'G', etc.) or section identifier.
+  * On paper, Class and Section may be in separate labeled boxes (e.g. 'Class: 6' and 'Sec: E') or written together (e.g. 'VII-C', '6E', '6 E', '5 B', 'IX A', '10-A', 'Class 4 Sec B').
+  * Always extract into the single field key 'class_and_section'. Standardize Class and Section combined with a hyphen (e.g. 'VII-C', '6-E', '5-B', 'IV-A', '10-A', 'UKG-A').
+  * If only Class is provided without Section, extract the Class (e.g. '6', 'VII', 'UKG').
+  * If only Section is provided without Class, extract the Section (e.g. 'C', 'E').
+  * Never return null for 'class_and_section' if either a Class (number/Roman numeral/pre-primary) or Section letter is visible on either page.
 - Do not diagnose or add advice.
 
 Field keys to extract:
@@ -98,6 +107,15 @@ Rules:
   * Carefully examine the Gender section ('Male' / 'Female' / 'Other' checkboxes or labels).
   * Look for any checkmark (✓), tick, cross (✗), slash (/), dot, shaded square, or circled word ('Male' or 'Female').
   * Return strictly "Male", "Female", or "Other". Never return null if either Male or Female is marked.
+- Class & Section (class_and_section):
+  * Locate Class / Standard / Grade and Section on both pages (Image 1 Student Info and Image 2 Clinical Assessment).
+  * Class can be written as Arabic numerals (1 to 12, e.g. '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', or ordinal '1st', '6th', '10th'), Roman numerals (I to XII, e.g. 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII'), or pre-primary ('LKG', 'UKG', 'Nursery', 'Pre-KG', 'KG').
+  * Section is typically an uppercase English alphabet letter ('A', 'B', 'C', 'D', 'E', 'F', 'G', etc.) or section identifier.
+  * On paper, Class and Section may be in separate labeled boxes (e.g. 'Class: 6' and 'Sec: E') or written together in one line (e.g. 'VII-C', '6E', '6 E', '5 B', 'IX A', '10-A', 'Class 4 Sec B').
+  * Always extract into the single field key 'class_and_section'. Standardize Class and Section combined with a hyphen (e.g. 'VII-C', '6-E', '5-B', 'IV-A', '10-A', 'UKG-A').
+  * If only Class is provided without Section, extract the Class (e.g. '6', 'VII', 'UKG').
+  * If only Section is provided without Class, extract the Section (e.g. 'C', 'E').
+  * Never return null for 'class_and_section' if either a Class (number/Roman numeral/pre-primary) or Section letter is visible on either page.
 - Brackets & multi-row findings:
   * When a curly bracket '{' or vertical line spans multiple items (e.g. Nose and Throat, or Skin and Hair) with 'N', 'Normal', 'NAD', 'WNL' or a note next to it, apply that status to all spanned items (e.g. sys_nose='Normal', sys_throat='Normal').
 - Bilateral findings:
@@ -253,6 +271,101 @@ def _format_meta_field(raw: Any, default_page: int = 1, details: Any = None) -> 
     }
 
 
+def clean_and_standardize_class_section(val_str: Any) -> Optional[str]:
+    """Standardize Class and Section strings across Arabic numbers (1-12), Roman numerals (I-XII),
+    pre-primary grades (LKG/UKG/Nursery), and section letters (A-H).
+    Examples:
+      'VII C' -> 'VII-C'
+      '6E' -> '6-E'
+      '6 E' -> '6-E'
+      'Class: 6 Sec: E' -> '6-E'
+      '10-A' -> '10-A'
+      'UKG - B' -> 'UKG-B'
+      '6th - E' -> '6-E'
+    """
+    if val_str is None:
+        return None
+    s = str(val_str).strip()
+    if not s or s.lower() in ("none", "null", "undefined", "n/a", "na", "-"):
+        return None
+    s = re.sub(r'^(?:class|std|standard|grade)\s*[:\-]?\s*', '', s, flags=re.IGNORECASE)
+    s = re.sub(r'^(\d+)(?:st|nd|rd|th)\b', r'\1', s, flags=re.IGNORECASE)
+    s = re.sub(r'\s*[\-–—]?\s*(?:sec|section)\s*[:\-]?\s*', '-', s, flags=re.IGNORECASE)
+    s = re.sub(r'^(\d+|[IVXLCDMivxlcdm]+)\s+([A-Za-z])$', r'\1-\2', s)
+    s = re.sub(r'^(\d+)([A-Za-z])$', r'\1-\2', s)
+    s = re.sub(r'\s*-\s*', '-', s)
+    parts = s.split('-', 1)
+    if len(parts) == 2:
+        c_part, sec_part = parts[0].strip(), parts[1].strip().upper()
+        if re.match(r'^[ivxlcdm]+$', c_part, re.IGNORECASE):
+            c_part = c_part.upper()
+        return f"{c_part}-{sec_part}"
+    elif len(parts) == 1:
+        c_part = parts[0].strip()
+        if re.match(r'^[ivxlcdm]+$', c_part, re.IGNORECASE):
+            c_part = c_part.upper()
+        return c_part
+    return s.strip()
+
+
+def coalesce_and_standardize_class_section(target: Dict[str, Any]) -> None:
+    """Ensure target dictionary contains a clean, standardized 'class_and_section'."""
+    cs_entry = target.get("class_and_section")
+    cs_raw = cs_entry[0] if (isinstance(cs_entry, (list, tuple)) and len(cs_entry) > 0) else (cs_entry if isinstance(cs_entry, str) else None)
+
+    if cs_raw and str(cs_raw).strip() not in ("", "null", "None", "undefined"):
+        cleaned = clean_and_standardize_class_section(cs_raw)
+        conf = cs_entry[1] if (isinstance(cs_entry, (list, tuple)) and len(cs_entry) > 1) else 0.95
+        target["class_and_section"] = [cleaned, conf]
+        target["class_section"] = [cleaned, conf]
+        return
+
+    # Check alias keys
+    for alt_k in ["class_section", "class_and_sec", "class_sec", "std_and_sec", "std_sec", "grade_and_section", "grade_section", "standard_and_section", "year_of_study"]:
+        if alt_k in target:
+            at = target[alt_k]
+            av = at[0] if (isinstance(at, (list, tuple)) and len(at) > 0) else at
+            if av and str(av).strip() not in ("", "null", "None", "undefined"):
+                cleaned = clean_and_standardize_class_section(av)
+                conf = at[1] if (isinstance(at, (list, tuple)) and len(at) > 1) else 0.95
+                target["class_and_section"] = [cleaned, conf]
+                target["class_section"] = [cleaned, conf]
+                return
+
+    # Coalesce separate class + section
+    c_val, s_val = None, None
+    c_conf, s_conf = 0.95, 0.95
+    for ck in ["class", "standard", "std", "grade", "course", "year"]:
+        if ck in target:
+            ct = target[ck]
+            cv = ct[0] if (isinstance(ct, (list, tuple)) and len(ct) > 0) else ct
+            if cv and str(cv).strip() not in ("", "null", "None", "undefined"):
+                c_val = str(cv).strip()
+                c_conf = ct[1] if (isinstance(ct, (list, tuple)) and len(ct) > 1) else 0.95
+                break
+    for sk in ["section", "sec"]:
+        if sk in target:
+            st = target[sk]
+            sv = st[0] if (isinstance(st, (list, tuple)) and len(st) > 0) else st
+            if sv and str(sv).strip() not in ("", "null", "None", "undefined"):
+                s_val = str(sv).strip()
+                s_conf = st[1] if (isinstance(st, (list, tuple)) and len(st) > 1) else 0.95
+                break
+
+    if c_val and s_val:
+        cleaned = clean_and_standardize_class_section(f"{c_val}-{s_val}")
+        target["class_and_section"] = [cleaned, min(c_conf, s_conf)]
+        target["class_section"] = [cleaned, min(c_conf, s_conf)]
+    elif c_val:
+        cleaned = clean_and_standardize_class_section(c_val)
+        target["class_and_section"] = [cleaned, c_conf]
+        target["class_section"] = [cleaned, c_conf]
+    elif s_val:
+        cleaned = clean_and_standardize_class_section(s_val)
+        target["class_and_section"] = [cleaned, s_conf]
+        target["class_section"] = [cleaned, s_conf]
+
+
 def parse_and_validate_schema(raw_text: str) -> Tuple[bool, Dict[str, Any], Optional[str]]:
     """Parse JSON string and validate that each entry is [value, confidence].
     Returns (is_valid: bool, fields_dict: dict, error_msg: str).
@@ -367,12 +480,24 @@ def parse_and_validate_schema(raw_text: str) -> Tuple[bool, Dict[str, Any], Opti
         "any_current_previous_medications": ["medications"],
         "any_previous_surgery_hospitalization": ["surgery"],
         "skin_hair_ear_nose_problem": ["skin_ear_nose"],
+        "class_and_section": ["class_section", "class_and_sec", "class_sec", "std_and_sec", "std_sec", "grade_and_section", "grade_section", "standard_and_section", "class_standard"],
+        "class_section": ["class_and_section"],
+        "std_and_sec": ["class_and_section"],
+        "std_sec": ["class_and_section"],
+        "class_and_sec": ["class_and_section"],
+        "class_sec": ["class_and_section"],
+        "grade_and_section": ["class_and_section"],
+        "grade_section": ["class_and_section"],
+        "standard_and_section": ["class_and_section"],
     }
     for orig_k, aliases in list(alias_map.items()):
         if orig_k in normalized:
             for al in aliases:
                 if al not in normalized:
                     normalized[al] = normalized[orig_k]
+
+    # Standardize & coalesce class_and_section across Arabic numerals, Roman numerals, and sections
+    coalesce_and_standardize_class_section(normalized)
 
     return True, normalized, None
 
@@ -694,6 +819,9 @@ def validate_and_sanitize_extraction(raw_payload: Any) -> Dict[str, Any]:
     else:
         valid, fields = False, {}
 
+    # Ensure class_and_section is standardized & coalesced in fields
+    coalesce_and_standardize_class_section(fields)
+
     flags_meta = apply_server_side_flags(fields)
     flags = flags_meta["flags"]
 
@@ -785,6 +913,7 @@ def validate_and_sanitize_extraction(raw_payload: Any) -> Dict[str, Any]:
         "staff_student_type": _format_meta_field(p_info_raw.get("staff_student_type") or fields.get("staff_or_student"), 1),
         "full_name": _format_meta_field(p_info_raw.get("full_name") or fields.get("person_name") or fields.get("full_name"), 1),
         "gender": _format_meta_field(gender or (p_info_raw.get("gender") if isinstance(p_info_raw, dict) else None) or fields.get("gender"), 1),
+        "class_and_section": _format_meta_field(p_info_raw.get("class_and_section") or fields.get("class_and_section") or p_info_raw.get("class_section") or fields.get("class_section") or fields.get("std_and_sec") or fields.get("year_of_study"), 1),
         "year_of_study": _format_meta_field(p_info_raw.get("year_of_study") or fields.get("year") or fields.get("class_and_section"), 1),
         "course_dept": _format_meta_field(p_info_raw.get("course_dept") or fields.get("course"), 1),
         "section": _format_meta_field(p_info_raw.get("section") or fields.get("section"), 1),
@@ -944,8 +1073,33 @@ def validate_and_sanitize_extraction(raw_payload: Any) -> Dict[str, Any]:
         "referral": referral_obj,
     }
 
+    def _extract_top(val: Any) -> Any:
+        if isinstance(val, dict):
+            return val.get("value")
+        if isinstance(val, (list, tuple)) and len(val) > 0:
+            return val[0]
+        return val
+
+    cls_sec_top = _extract_top(personal_information.get("class_and_section"))
+    adm_id_top = _extract_top(personal_information.get("admission_id"))
+    doc_id_top = _extract_top(personal_information.get("doc_id"))
+    sch_top = _extract_top(personal_information.get("school_college_name"))
+    dob_top = _extract_top(personal_information.get("dob"))
+    bg_top = _extract_top(personal_information.get("blood_group"))
+    mob_top = _extract_top(personal_information.get("mobile_number"))
+    addr_top = _extract_top(personal_information.get("address"))
+
     return {
         "person_name": full_name,
+        "class_and_section": cls_sec_top,
+        "class_section": cls_sec_top,
+        "admission_id": adm_id_top,
+        "moc_doc_id": doc_id_top,
+        "school_name": sch_top,
+        "dob": dob_top,
+        "blood_group": bg_top,
+        "mobile_number": mob_top,
+        "address": addr_top,
         "age": str(age) if age is not None else None,
         "gender": gender,
         "height": height_display,
@@ -986,7 +1140,7 @@ def validate_and_sanitize_extraction(raw_payload: Any) -> Dict[str, Any]:
 # Authorship and ownership partitions for multi-page paediatric forms
 PAGE1_DEMOGRAPHIC_KEYS = {
     "person_name", "dob", "gender", "blood_group", "parent_name", "mobile_number",
-    "email", "address", "school_name", "screening_type", "known_allergies",
+    "email", "address", "school_name", "screening_type", "class_and_section", "known_allergies",
     "current_medication", "past_surgery", "vaccinated_for_age", "behaviour_concerns",
     "other_medical_issues", "family_adults_count", "family_minors_count",
     "pediatrician_name", "consent_screening", "consent_first_aid",

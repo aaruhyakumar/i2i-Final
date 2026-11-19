@@ -3312,6 +3312,22 @@ function proceedToPairsScreen() {
             return v;
           }
         }
+        if (key === 'class_and_section') {
+          for (const ak of ['class_section', 'std_and_sec', 'year_of_study', 'class']) {
+            if (record[ak]) return record[ak];
+            for (const grp of Object.values(sr)) {
+              if (grp && typeof grp === 'object' && grp[ak]) {
+                const v = grp[ak];
+                return (typeof v === 'object' && v !== null && v.value !== undefined) ? v.value : v;
+              }
+            }
+          }
+          const c = record.class || sr.personal_information?.course_dept?.value || sr.personal_information?.course_dept;
+          const s = record.section || sr.personal_information?.section?.value || sr.personal_information?.section;
+          if (c && s) return `${c}-${s}`;
+          if (c) return c;
+          if (s) return s;
+        }
         return '';
       };
 
@@ -3476,7 +3492,26 @@ function proceedToPairsScreen() {
     if ($('rev-exam-date')) $('rev-exam-date').value = getVal(h_asmt, 'exam_date', getVal(h_asmt, 'examination_date', record.exam_date || record.examination_date || ''));
     if ($('rev-doc-id')) $('rev-doc-id').value = getVal(p_info, 'doc_id', record.moc_doc_id || '');
     if ($('rev-adm-id')) $('rev-adm-id').value = getVal(p_info, 'admission_id', record.admission_id || '');
-    if ($('rev-class-and-section')) $('rev-class-and-section').value = getVal(p_info, 'class_and_section', getVal(sr, 'class_and_section', record.class_and_section || ''));
+    const resolveClassSecVal = () => {
+      let v = getVal(p_info, 'class_and_section',
+              getVal(p_info, 'class_section',
+              getVal(p_info, 'std_and_sec',
+              getVal(sr, 'class_and_section',
+              getVal(sr, 'class_section',
+              getVal(record, 'class_and_section',
+              getVal(record, 'class_section',
+              getVal(record, 'std_and_sec',
+              getVal(record.fields || {}, 'class_and_section', '')))))))));
+      if (!v) {
+        const c = getVal(p_info, 'course_dept', getVal(p_info, 'year_of_study', getVal(sr, 'class', getVal(record, 'class', ''))));
+        const s = getVal(p_info, 'section', getVal(sr, 'section', getVal(record, 'section', '')));
+        if (c && s) v = `${c}-${s}`;
+        else if (c) v = c;
+        else if (s) v = s;
+      }
+      return v;
+    };
+    if ($('rev-class-and-section')) $('rev-class-and-section').value = resolveClassSecVal();
     if ($('rev-school')) $('rev-school').value = getVal(p_info, 'school_college_name', record.school_name || '');
     if ($('rev-mobile')) $('rev-mobile').value = getVal(p_info, 'mobile_number', record.mobile_number || '');
     if ($('rev-address')) $('rev-address').value = getVal(p_info, 'address', record.address || '');
@@ -4857,6 +4892,7 @@ function proceedToPairsScreen() {
     if ($('rev-dob')) base.personal_information.dob = $('rev-dob').value.trim();
     if ($('rev-doc-id')) base.personal_information.doc_id = $('rev-doc-id').value.trim();
     if ($('rev-adm-id')) base.personal_information.admission_id = $('rev-adm-id').value.trim();
+    if ($('dyn-field-class_and_section')) base.personal_information.class_and_section = $('dyn-field-class_and_section').value.trim();
     if ($('rev-class-and-section')) base.personal_information.class_and_section = $('rev-class-and-section').value.trim();
     if ($('rev-school')) base.personal_information.school_college_name = $('rev-school').value.trim();
     if ($('rev-mobile')) base.personal_information.mobile_number = $('rev-mobile').value.trim();
@@ -5128,6 +5164,7 @@ function proceedToPairsScreen() {
       const dynHeight = $('dyn-field-height_cm')?.value?.trim() || $('dyn-field-height')?.value?.trim();
       const dynWeight = $('dyn-field-weight_kg')?.value?.trim() || $('dyn-field-weight')?.value?.trim();
       const dynBP = $('dyn-field-blood_pressure_mmhg')?.value?.trim() || $('dyn-field-blood_pressure')?.value?.trim();
+      const dynClassSec = $('dyn-field-class_and_section')?.value?.trim();
 
       const updates = {
         id: state.activeRecord.id,
@@ -5141,7 +5178,7 @@ function proceedToPairsScreen() {
         blood_pressure: dynBP || $('rev-bp')?.value.trim() || state.activeRecord.blood_pressure,
         dob: $('rev-dob') ? $('rev-dob').value.trim() : (state.activeRecord.dob || ''),
         blood_group: $('rev-blood-group') ? $('rev-blood-group').value.trim() : (state.activeRecord.blood_group || ''),
-        class_and_section: $('rev-class-and-section') ? $('rev-class-and-section').value.trim() : (state.activeRecord.class_and_section || ''),
+        class_and_section: dynClassSec || ($('rev-class-and-section') ? $('rev-class-and-section').value.trim() : (state.activeRecord.class_and_section || '')),
         otoscope_right_ear: $('rev-ent-rear') ? $('rev-ent-rear').value.trim() : (state.activeRecord.otoscope_right_ear || ''),
         otoscope_left_ear: $('rev-ent-lear') ? $('rev-ent-lear').value.trim() : (state.activeRecord.otoscope_left_ear || ''),
         sys_nose: $('rev-ent-nose') ? $('rev-ent-nose').value.trim() : (state.activeRecord.sys_nose || ''),
@@ -5219,6 +5256,7 @@ function proceedToPairsScreen() {
       const dynHeight = $('dyn-field-height_cm')?.value?.trim() || $('dyn-field-height')?.value?.trim();
       const dynWeight = $('dyn-field-weight_kg')?.value?.trim() || $('dyn-field-weight')?.value?.trim();
       const dynBP = $('dyn-field-blood_pressure_mmhg')?.value?.trim() || $('dyn-field-blood_pressure')?.value?.trim();
+      const dynClassSec = $('dyn-field-class_and_section')?.value?.trim();
 
       const updates = {
         id: state.activeRecord.id,
@@ -5232,7 +5270,7 @@ function proceedToPairsScreen() {
         blood_pressure: dynBP || $('rev-bp')?.value.trim() || state.activeRecord.blood_pressure,
         dob: $('rev-dob') ? $('rev-dob').value.trim() : (state.activeRecord.dob || ''),
         blood_group: $('rev-blood-group') ? $('rev-blood-group').value.trim() : (state.activeRecord.blood_group || ''),
-        class_and_section: $('rev-class-and-section') ? $('rev-class-and-section').value.trim() : (state.activeRecord.class_and_section || ''),
+        class_and_section: dynClassSec || ($('rev-class-and-section') ? $('rev-class-and-section').value.trim() : (state.activeRecord.class_and_section || '')),
         otoscope_right_ear: $('rev-ent-rear') ? $('rev-ent-rear').value.trim() : (state.activeRecord.otoscope_right_ear || ''),
         otoscope_left_ear: $('rev-ent-lear') ? $('rev-ent-lear').value.trim() : (state.activeRecord.otoscope_left_ear || ''),
         sys_nose: $('rev-ent-nose') ? $('rev-ent-nose').value.trim() : (state.activeRecord.sys_nose || ''),
