@@ -5443,52 +5443,48 @@ function proceedToPairsScreen() {
         token = (await api.refreshAuthSession()) || '';
       }
       if (!token) {
-        toast('Authentication required to export records. Please sign in or use Demo Station.', true);
+        toast('Authentication required to export records.', true);
         return;
       }
 
-      const headers = { 'Authorization': `Bearer ${token}` };
-      let res = await fetch(url, { headers });
+      const directUrl = url.includes('token=') ? url : (url + (url.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token));
+      const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
 
-      // Handle token expiry transparently: refresh session and retry once
-      if (res.status === 401 && typeof api !== 'undefined' && typeof api.refreshAuthSession === 'function') {
-        const refreshed = await api.refreshAuthSession();
-        if (refreshed) {
-          token = refreshed;
-          headers['Authorization'] = `Bearer ${token}`;
-          res = await fetch(url, { headers });
-        }
-      }
-
-      if (!res.ok) {
-        let errMsg = `Server returned ${res.status}`;
+      if (isMobile) {
+        // Mobile / Android WebView: Direct navigation triggers native Android DownloadManager
         try {
-          const errJson = await res.json();
-          errMsg = errJson.message || errJson.error || errMsg;
-        } catch {
-          const errText = await res.text().catch(() => '');
-          if (errText) errMsg = errText;
+          const dlFrame = document.createElement('iframe');
+          dlFrame.style.display = 'none';
+          dlFrame.src = directUrl;
+          document.body.appendChild(dlFrame);
+          setTimeout(() => dlFrame.remove(), 8000);
+        } catch (_) {
+          window.location.assign(directUrl);
         }
-        throw new Error(errMsg);
+      } else {
+        // Desktop browsers: Blob download via anchor
+        const headers = { 'Authorization': `Bearer ${token}` };
+        const res = await fetch(url, { headers });
+        if (res.ok) {
+          const blob = await res.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.setAttribute('download', filename);
+          link.style.display = 'none';
+          document.body.appendChild(link);
+          link.click();
+          setTimeout(() => {
+            if (link.parentNode) link.parentNode.removeChild(link);
+            URL.revokeObjectURL(blobUrl);
+          }, 1500);
+        }
       }
 
-      const blob = await res.blob();
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.setAttribute('download', filename);
-      link.style.display = 'none';
-      document.body.appendChild(link);
-      link.click();
-      setTimeout(() => {
-        if (link.parentNode) link.parentNode.removeChild(link);
-        URL.revokeObjectURL(blobUrl);
-      }, 1500);
-
-      toast(`Downloaded ${filename} (.xlsx)`);
+      toast('📥 Spreadsheet ready for download!');
     } catch (err) {
       console.error('[Download] Failed to download export:', err);
-      toast(`Download failed: ${err.message || 'Authorization required'}`, true);
+      toast('Tap the green button above to download', false);
     }
   }
 
@@ -5504,6 +5500,10 @@ function proceedToPairsScreen() {
     const url = api.getExportUrl(targetCampId, onlyReviewed, 'xlsx', formType);
     const filename = `${safeName}_Health_Records.xlsx`;
 
+    let token = (localStorage.getItem('auth_token') || localStorage.getItem('supabase_access_token') || '').trim();
+    const sep = url.includes('?') ? '&' : '?';
+    const directUrl = (token && !url.includes('token=')) ? `${url}${sep}token=${encodeURIComponent(token)}` : url;
+
     triggerDownload(url, filename);
 
     // Navigate user to the interactive Excel Sheet Viewer so they immediately SEE the spreadsheet
@@ -5513,19 +5513,21 @@ function proceedToPairsScreen() {
     const ribTitle = $('excel-ribbon-filename');
     if (ribTitle) ribTitle.textContent = `${filename} (Live In-App Viewer)`;
 
-    // Show prominent confirmation banner
+    // Show prominent confirmation banner with direct mobile download link
     const banner = $('excel-download-banner');
     if (banner) {
       banner.style.display = 'block';
       banner.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <span style="font-size:26px;line-height:1;">📥</span>
-        <div style="flex:1;">
-          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;">Excel Workbook Downloaded!</b>
-          <p style="font-size:13px;color:var(--ink);margin:0;line-height:1.4;">
-            File saved to your computer Downloads folder: <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid var(--teal);font-weight:700;">${filename}</code>.
-            <br>You can also view, search, and inspect all clinical fields and sheets directly in the interactive spreadsheet below.
+        <div style="flex:1;min-width:0;">
+          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;word-break:break-word;">${escapeHtml(rawName)} Excel Workbook Ready</b>
+          <p style="font-size:12.5px;color:var(--ink);margin:0 0 8px 0;line-height:1.4;">
+            File: <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid var(--teal);font-weight:700;word-break:break-all;overflow-wrap:anywhere;display:inline-block;max-width:100%;font-size:11.5px;">${escapeHtml(filename)}</code>
           </p>
+          <a href="${escapeHtml(directUrl)}" download="${escapeHtml(filename)}" class="btn" style="background:#107c41;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;box-shadow:0 2px 6px rgba(16,124,65,0.3);">
+            ⬇ Tap to Download Excel (.xlsx)
+          </a>
         </div>
       </div>
     `;
@@ -5545,6 +5547,11 @@ function proceedToPairsScreen() {
     const safeName = rawName.replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_') || 'Organization';
     const url = api.getCampExportUrl(campId, 'xlsx');
     const filename = `${safeName}_Health_Records.xlsx`;
+
+    let token = (localStorage.getItem('auth_token') || localStorage.getItem('supabase_access_token') || '').trim();
+    const sep = url.includes('?') ? '&' : '?';
+    const directUrl = (token && !url.includes('token=')) ? `${url}${sep}token=${encodeURIComponent(token)}` : url;
+
     triggerDownload(url, filename);
 
     go('export');
@@ -5561,12 +5568,14 @@ function proceedToPairsScreen() {
       banner.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:12px;">
         <span style="font-size:26px;line-height:1;">📥</span>
-        <div style="flex:1;">
-          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;">${escapeHtml(rawName)} Excel Workbook Downloaded!</b>
-          <p style="font-size:13px;color:var(--ink);margin:0;line-height:1.4;">
-            File saved to Downloads folder: <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid var(--teal);font-weight:700;">${filename}</code>.
-            <br>Contains all patient records filed under this organization.
+        <div style="flex:1;min-width:0;">
+          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;word-break:break-word;">${escapeHtml(rawName)} Excel Workbook Ready</b>
+          <p style="font-size:12.5px;color:var(--ink);margin:0 0 8px 0;line-height:1.4;">
+            File: <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid var(--teal);font-weight:700;word-break:break-all;overflow-wrap:anywhere;display:inline-block;max-width:100%;font-size:11.5px;">${escapeHtml(filename)}</code>
           </p>
+          <a href="${escapeHtml(directUrl)}" download="${escapeHtml(filename)}" class="btn" style="background:#107c41;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;box-shadow:0 2px 6px rgba(16,124,65,0.3);">
+            ⬇ Tap to Download Excel (.xlsx)
+          </a>
         </div>
       </div>
     `;
@@ -5583,13 +5592,39 @@ function proceedToPairsScreen() {
     const targetCampId = campId || ($('export-camp-select')?.value || null);
     const onlyReviewed = $('export-only-reviewed')?.checked || false;
     const url = api.getPaediatricExportUrl(targetCampId, onlyReviewed);
-    const filename = `Paediatric_Health_Records_${targetCampId || 'all'}.xlsx`;
+    const camp = targetCampId ? state.camps.find(x => x.id === targetCampId) : null;
+    const safeCampName = camp ? camp.name.replace(/[^a-zA-Z0-9_\-]/g, '_') : (targetCampId || 'all');
+    const filename = `Paediatric_Health_Records_${safeCampName}.xlsx`;
+
+    let token = (localStorage.getItem('auth_token') || localStorage.getItem('supabase_access_token') || '').trim();
+    const sep = url.includes('?') ? '&' : '?';
+    const directUrl = (token && !url.includes('token=')) ? `${url}${sep}token=${encodeURIComponent(token)}` : url;
+
     triggerDownload(url, filename);
     go('export');
     const ribTitle = $('excel-ribbon-filename');
     if (ribTitle) ribTitle.textContent = `${filename} (Live In-App Viewer)`;
     const fTypeSel = $('export-form-type-select');
     if (fTypeSel) fTypeSel.value = 'paediatric';
+
+    const banner = $('excel-download-banner');
+    if (banner) {
+      banner.style.display = 'block';
+      banner.innerHTML = `
+      <div style="display:flex;align-items:flex-start;gap:12px;">
+        <span style="font-size:26px;line-height:1;">📥</span>
+        <div style="flex:1;min-width:0;">
+          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;word-break:break-word;">Paediatric Excel Workbook Ready</b>
+          <p style="font-size:12.5px;color:var(--ink);margin:0 0 8px 0;line-height:1.4;">
+            File: <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid var(--teal);font-weight:700;word-break:break-all;overflow-wrap:anywhere;display:inline-block;max-width:100%;font-size:11.5px;">${escapeHtml(filename)}</code>
+          </p>
+          <a href="${escapeHtml(directUrl)}" download="${escapeHtml(filename)}" class="btn" style="background:#107c41;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;box-shadow:0 2px 6px rgba(16,124,65,0.3);">
+            ⬇ Tap to Download Excel (.xlsx)
+          </a>
+        </div>
+      </div>
+    `;
+    }
     renderExcelPreview(currentExcelSheet);
   }
 
@@ -5636,6 +5671,21 @@ function proceedToPairsScreen() {
     renderExcelPreview(currentExcelSheet);
   }
 
+  export function showAllCampsInExcel() {
+    const sel = $('export-camp-select');
+    if (sel) sel.value = '';
+    const fType = $('export-form-type-select');
+    if (fType) fType.value = '';
+    const onlyRev = $('export-only-reviewed');
+    if (onlyRev) onlyRev.checked = false;
+    excelSearchQuery = '';
+    const sInput = $('excel-search-input');
+    if (sInput) sInput.value = '';
+    const ribTitle = $('excel-ribbon-filename');
+    if (ribTitle) ribTitle.textContent = 'All_Clinical_Records.xlsx (Live In-App Viewer)';
+    renderExcelPreview('records');
+  }
+
   export async function renderExcelPreview(sheetName = currentExcelSheet) {
     const container = $('excel-grid-container');
     if (!container) return;
@@ -5647,6 +5697,16 @@ function proceedToPairsScreen() {
     const onlyApproved = $('export-only-reviewed')?.checked || false;
     const campsCountEl = $('excel-camps-count');
     if (campsCountEl) campsCountEl.textContent = state.camps.length;
+
+    // Auto-fetch fresh records if state.records is empty
+    if (!state.records || state.records.length === 0) {
+      try {
+        const fresh = await api.getRecords();
+        if (fresh && fresh.records) {
+          state.records = fresh.records;
+        }
+      } catch (_) {}
+    }
 
     if (sheetName === 'attributes') {
       // ── Sheet 2: Form Structure & Attributes Dictionary ────────────────────
@@ -5732,11 +5792,21 @@ function proceedToPairsScreen() {
       if (recordsCountEl) recordsCountEl.textContent = list.length;
 
       if (list.length === 0) {
+        const total = (state.records || []).length;
         container.innerHTML = `
-        <div style="padding:32px 20px;text-align:center;color:var(--mute);">
-          <div style="font-size:28px;margin-bottom:8px;">📋</div>
-          <b>No records match the current spreadsheet filter.</b>
-          <p style="font-size:12.5px;margin-top:4px;">Select "All Health Camps" or clear your search to view all clinical records.</p>
+        <div style="padding:28px 16px;text-align:center;color:var(--mute);">
+          <div style="font-size:32px;margin-bottom:8px;">📋</div>
+          <b style="color:var(--text);font-size:14px;display:block;">No records match the current spreadsheet filter</b>
+          <p style="font-size:12.5px;margin:6px 0 14px 0;">${total > 0 ? `Showing 0 filtered records out of ${total} total records in database.` : 'No clinical records recorded yet.'}</p>
+          ${total > 0 ? `
+          <button onclick="window.app.showAllCampsInExcel()" class="btn secondary sm" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12.5px;margin:0 auto;border-radius:8px;font-weight:600;">
+            👁️ Show All Records (${total})
+          </button>
+          ` : `
+          <button onclick="window.app.go('scan-flow')" class="btn primary sm" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;font-size:12.5px;margin:0 auto;border-radius:8px;font-weight:600;">
+            📸 Scan New Form
+          </button>
+          `}
         </div>
       `;
         return;
@@ -6954,6 +7024,7 @@ function proceedToPairsScreen() {
     renderExcelPreview,
     filterExcelPreview,
     onExportFilterChanged,
+    showAllCampsInExcel,
     renderAnalytics,
     onAnalyticsCampChanged,
     checkDuplicatePatient,
