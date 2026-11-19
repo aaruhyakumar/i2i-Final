@@ -138,8 +138,14 @@ class RecordService:
         }
 
     def validate_camp(self, camp_id: str) -> Optional[Dict[str, Any]]:
-        """Verify camp existence."""
+        """Verify camp existence with auto-healing."""
         camp = database.get_camp_by_id(camp_id, self.db_path)
+        if not camp and camp_id:
+            try:
+                database.ensure_camp_exists(camp_id, db_path=self.db_path)
+                camp = database.get_camp_by_id(camp_id, self.db_path)
+            except Exception:
+                pass
         return camp
 
     def create_record(self, data: Dict[str, Any]) -> Dict[str, Any]:

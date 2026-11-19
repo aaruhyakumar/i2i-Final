@@ -3,7 +3,7 @@
  * Connects the phone-first touch UI with Flask REST API & Vision AI.
  */
 
-import { api, offlineQueue, registerOfflineSupport, getFileBlobUrl } from './api.js?v=20261118_v9';
+import { api, offlineQueue, registerOfflineSupport, getFileBlobUrl } from './api.js?v=20261119_v11';
 import { DocumentScanner, DEFAULT_QUALITY_FALLBACK } from './scanner.js?v=20261116_bug07';
 
 
@@ -3137,22 +3137,9 @@ function proceedToPairsScreen() {
         return;
       }
 
-      // Fallback: create record with manual entry so workflow is never blocked
-      try {
-        const fallbackPayload = {
-          camp_id: campId,
-          person_name: nameInput || 'New Patient (Manual Entry)',
-          status: 'needs_review',
-          page1_preview: state.pageUrls[0],
-          page2_preview: state.pageUrls[1],
-          extraction_notes: 'Vision AI transcription could not complete. Manual entry enabled.'
-        };
-        const saved = await api.saveRecord(fallbackPayload);
-        toast('Manual review opened.', true);
-        openReview(saved.id);
-      } catch (saveErr) {
-        if (err) err.textContent = 'Could not save record: ' + saveErr.message;
-      }
+      const errMsg = ex.message || (ex.data && ex.data.error) || 'AI extraction failed. Please check network connection and retry.';
+      toast(`Extraction failed: ${errMsg}`, true);
+      if (err) err.textContent = `Extraction failed: ${errMsg}`;
     } finally {
       if (runBtn) {
         runBtn.disabled = false;
