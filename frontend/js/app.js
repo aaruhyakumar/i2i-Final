@@ -5176,9 +5176,28 @@ function proceedToPairsScreen() {
       await api.approveRecord(state.activeRecord.id, state.doctorName, updates);
       await api.unlockRecord(state.activeRecord.id, state.doctorName).catch(() => { });
 
-      toast('Record approved and quota billed! Opening Excel spreadsheet… 📋📊');
       const campId = state.activeRecord.camp_id || state.selectedCampId;
-      exportPaediatricExcel(campId);
+      const camp = state.camps.find(x => x.id === campId);
+      const campName = camp ? camp.name : 'Health Camp';
+
+      // Ensure active camp is preserved for the next scan
+      if (campId) {
+        state.selectedCampId = campId;
+      }
+
+      // Background cache refresh of records
+      api.getRecords().then(fresh => {
+        if (fresh && fresh.records) state.records = fresh.records;
+      }).catch(() => {});
+
+      // Clear current record context
+      state.activeRecord = null;
+      state.lastPaediatricResult = null;
+
+      toast(`✅ Approved! Ready to scan next form for ${campName}.`);
+
+      // Return user directly to the scanner page for this camp
+      await startScan();
     } catch (err) {
       toast('Approval failed: ' + err.message, true);
     } finally {
