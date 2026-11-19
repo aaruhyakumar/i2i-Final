@@ -5451,16 +5451,14 @@ function proceedToPairsScreen() {
       const isMobile = /Android|iPhone|iPad|iPod|webOS/i.test(navigator.userAgent);
 
       if (isMobile) {
-        // Mobile / Android WebView: Direct navigation triggers native Android DownloadManager
-        try {
-          const dlFrame = document.createElement('iframe');
-          dlFrame.style.display = 'none';
-          dlFrame.src = directUrl;
-          document.body.appendChild(dlFrame);
-          setTimeout(() => dlFrame.remove(), 8000);
-        } catch (_) {
-          window.location.assign(directUrl);
-        }
+        // Mobile / Android WebView: Direct anchor navigation triggers native Android DownloadManager
+        const a = document.createElement('a');
+        a.href = directUrl;
+        a.setAttribute('download', filename);
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => a.remove(), 1000);
       } else {
         // Desktop browsers: Blob download via anchor
         const headers = { 'Authorization': `Bearer ${token}` };
@@ -5478,13 +5476,15 @@ function proceedToPairsScreen() {
             if (link.parentNode) link.parentNode.removeChild(link);
             URL.revokeObjectURL(blobUrl);
           }, 1500);
+        } else {
+          window.open(directUrl, '_blank');
         }
       }
 
-      toast('📥 Spreadsheet ready for download!');
+      toast('📥 Spreadsheet download started!');
     } catch (err) {
       console.error('[Download] Failed to download export:', err);
-      toast('Tap the green button above to download', false);
+      toast('Download failed. Tap Download button to retry.', true);
     }
   }
 
@@ -5497,37 +5497,30 @@ function proceedToPairsScreen() {
     const formType = $('export-form-type-select')?.value || (camp && camp.target_group) || null;
     const rawName = camp ? camp.name : (formType ? `${formType.toUpperCase()}_Records` : 'All_Organizations');
     const safeName = rawName.replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_') || 'Health_Records';
-    const url = api.getExportUrl(targetCampId, onlyReviewed, 'xlsx', formType);
     const filename = `${safeName}_Health_Records.xlsx`;
 
-    let token = (localStorage.getItem('auth_token') || localStorage.getItem('supabase_access_token') || '').trim();
-    const sep = url.includes('?') ? '&' : '?';
-    const directUrl = (token && !url.includes('token=')) ? `${url}${sep}token=${encodeURIComponent(token)}` : url;
-
-    triggerDownload(url, filename);
-
-    // Navigate user to the interactive Excel Sheet Viewer so they immediately SEE the spreadsheet
+    // Navigate user to the interactive Excel Sheet Viewer (manual download only)
     go('export');
 
     // Update Ribbon Title
     const ribTitle = $('excel-ribbon-filename');
     if (ribTitle) ribTitle.textContent = `${filename} (Live In-App Viewer)`;
 
-    // Show prominent confirmation banner with direct mobile download link
+    // Show prominent confirmation banner with manual download button
     const banner = $('excel-download-banner');
     if (banner) {
       banner.style.display = 'block';
       banner.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:12px;">
-        <span style="font-size:26px;line-height:1;">📥</span>
+        <span style="font-size:26px;line-height:1;">📊</span>
         <div style="flex:1;min-width:0;">
-          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;word-break:break-word;">${escapeHtml(rawName)} Excel Workbook Ready</b>
-          <p style="font-size:12.5px;color:var(--ink);margin:0 0 8px 0;line-height:1.4;">
+          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;word-break:break-word;">${escapeHtml(rawName)} Excel Spreadsheet Ready</b>
+          <p style="font-size:12.5px;color:var(--ink);margin:0 0 10px 0;line-height:1.4;">
             File: <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid var(--teal);font-weight:700;word-break:break-all;overflow-wrap:anywhere;display:inline-block;max-width:100%;font-size:11.5px;">${escapeHtml(filename)}</code>
           </p>
-          <a href="${escapeHtml(directUrl)}" download="${escapeHtml(filename)}" class="btn" style="background:#107c41;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;box-shadow:0 2px 6px rgba(16,124,65,0.3);">
-            ⬇ Tap to Download Excel (.xlsx)
-          </a>
+          <button onclick="window.app.executeExport()" class="btn" style="background:#107c41;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;box-shadow:0 2px 6px rgba(16,124,65,0.3);border:none;cursor:pointer;">
+            ⬇ Download Excel (.xlsx)
+          </button>
         </div>
       </div>
     `;
@@ -5545,14 +5538,7 @@ function proceedToPairsScreen() {
     const camp = state.camps.find(x => x.id === campId);
     const rawName = camp ? camp.name : 'Organization';
     const safeName = rawName.replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_') || 'Organization';
-    const url = api.getCampExportUrl(campId, 'xlsx');
     const filename = `${safeName}_Health_Records.xlsx`;
-
-    let token = (localStorage.getItem('auth_token') || localStorage.getItem('supabase_access_token') || '').trim();
-    const sep = url.includes('?') ? '&' : '?';
-    const directUrl = (token && !url.includes('token=')) ? `${url}${sep}token=${encodeURIComponent(token)}` : url;
-
-    triggerDownload(url, filename);
 
     go('export');
 
@@ -5567,15 +5553,15 @@ function proceedToPairsScreen() {
       banner.style.display = 'block';
       banner.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:12px;">
-        <span style="font-size:26px;line-height:1;">📥</span>
+        <span style="font-size:26px;line-height:1;">📊</span>
         <div style="flex:1;min-width:0;">
-          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;word-break:break-word;">${escapeHtml(rawName)} Excel Workbook Ready</b>
-          <p style="font-size:12.5px;color:var(--ink);margin:0 0 8px 0;line-height:1.4;">
+          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;word-break:break-word;">${escapeHtml(rawName)} Excel Spreadsheet Ready</b>
+          <p style="font-size:12.5px;color:var(--ink);margin:0 0 10px 0;line-height:1.4;">
             File: <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid var(--teal);font-weight:700;word-break:break-all;overflow-wrap:anywhere;display:inline-block;max-width:100%;font-size:11.5px;">${escapeHtml(filename)}</code>
           </p>
-          <a href="${escapeHtml(directUrl)}" download="${escapeHtml(filename)}" class="btn" style="background:#107c41;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;box-shadow:0 2px 6px rgba(16,124,65,0.3);">
-            ⬇ Tap to Download Excel (.xlsx)
-          </a>
+          <button onclick="window.app.executeExport()" class="btn" style="background:#107c41;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;box-shadow:0 2px 6px rgba(16,124,65,0.3);border:none;cursor:pointer;">
+            ⬇ Download Excel (.xlsx)
+          </button>
         </div>
       </div>
     `;
@@ -5584,23 +5570,16 @@ function proceedToPairsScreen() {
   }
 
   export function exportAdultExcel(campId = null) {
-    toast('Adult workflows are retired. Exporting Paediatric Health Records.');
+    toast('Adult workflows are retired. Opening Paediatric Health Records.');
     return exportPaediatricExcel(campId);
   }
 
   export function exportPaediatricExcel(campId = null) {
     const targetCampId = campId || ($('export-camp-select')?.value || null);
-    const onlyReviewed = $('export-only-reviewed')?.checked || false;
-    const url = api.getPaediatricExportUrl(targetCampId, onlyReviewed);
     const camp = targetCampId ? state.camps.find(x => x.id === targetCampId) : null;
     const safeCampName = camp ? camp.name.replace(/[^a-zA-Z0-9_\-]/g, '_') : (targetCampId || 'all');
     const filename = `Paediatric_Health_Records_${safeCampName}.xlsx`;
 
-    let token = (localStorage.getItem('auth_token') || localStorage.getItem('supabase_access_token') || '').trim();
-    const sep = url.includes('?') ? '&' : '?';
-    const directUrl = (token && !url.includes('token=')) ? `${url}${sep}token=${encodeURIComponent(token)}` : url;
-
-    triggerDownload(url, filename);
     go('export');
     const ribTitle = $('excel-ribbon-filename');
     if (ribTitle) ribTitle.textContent = `${filename} (Live In-App Viewer)`;
@@ -5612,15 +5591,15 @@ function proceedToPairsScreen() {
       banner.style.display = 'block';
       banner.innerHTML = `
       <div style="display:flex;align-items:flex-start;gap:12px;">
-        <span style="font-size:26px;line-height:1;">📥</span>
+        <span style="font-size:26px;line-height:1;">📊</span>
         <div style="flex:1;min-width:0;">
-          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;word-break:break-word;">Paediatric Excel Workbook Ready</b>
-          <p style="font-size:12.5px;color:var(--ink);margin:0 0 8px 0;line-height:1.4;">
+          <b style="color:var(--teal2);font-size:14.5px;display:block;margin-bottom:2px;word-break:break-word;">Paediatric Excel Spreadsheet Ready</b>
+          <p style="font-size:12.5px;color:var(--ink);margin:0 0 10px 0;line-height:1.4;">
             File: <code style="background:#fff;padding:2px 6px;border-radius:4px;border:1px solid var(--teal);font-weight:700;word-break:break-all;overflow-wrap:anywhere;display:inline-block;max-width:100%;font-size:11.5px;">${escapeHtml(filename)}</code>
           </p>
-          <a href="${escapeHtml(directUrl)}" download="${escapeHtml(filename)}" class="btn" style="background:#107c41;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:8px;text-decoration:none;font-size:13px;box-shadow:0 2px 6px rgba(16,124,65,0.3);">
-            ⬇ Tap to Download Excel (.xlsx)
-          </a>
+          <button onclick="window.app.executeExport()" class="btn" style="background:#107c41;color:#fff;font-weight:700;display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:8px;font-size:13px;box-shadow:0 2px 6px rgba(16,124,65,0.3);border:none;cursor:pointer;">
+            ⬇ Download Excel (.xlsx)
+          </button>
         </div>
       </div>
     `;
@@ -5632,7 +5611,17 @@ function proceedToPairsScreen() {
     const campSelect = $('export-camp-select');
     const campId = (campSelect && campSelect.value) ? campSelect.value : null;
     const onlyReviewed = $('export-only-reviewed')?.checked || false;
-    exportExcel(campId, onlyReviewed);
+    const formType = $('export-form-type-select')?.value || 'paediatric';
+    const camp = campId ? state.camps.find(x => x.id === campId) : null;
+    const rawName = camp ? camp.name : (formType ? `${formType.toUpperCase()}_Records` : 'All_Organizations');
+    const safeName = rawName.replace(/[^a-zA-Z0-9_\-]/g, '_').replace(/_+/g, '_') || 'Health_Records';
+    const url = formType === 'paediatric'
+      ? api.getPaediatricExportUrl(campId, onlyReviewed)
+      : api.getExportUrl(campId, onlyReviewed, 'xlsx', formType);
+    const filename = `${safeName}_Health_Records.xlsx`;
+
+    // Manual user action -> trigger download
+    triggerDownload(url, filename);
   }
 
   export function toggleExcelFullscreen() {
